@@ -1,7 +1,7 @@
 from typing import Dict, Any
 
-from route_planner.core.node import BaseNode
-from route_planner.core.state import RouteState
+from route_planner.node import BaseNode
+from route_planner.state import RouteState
 
 
 def _queue_tip(poi: dict) -> str:
@@ -41,7 +41,7 @@ def _trend_tag(poi: dict) -> str:
 class EnrichNode(BaseNode):
     def __call__(self, state: RouteState) -> Dict[str, Any]:
         candidates = state["candidates"]
-        selection = state["route"]  # [{poi_id, order, stay_minutes}, ...]
+        selection = state["route"]
 
         poi_lookup: dict[str, dict] = {
             poi["id"]: poi

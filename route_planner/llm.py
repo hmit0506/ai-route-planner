@@ -26,9 +26,7 @@ def _claude_client() -> Anthropic:
 
 
 def _extract_json(text: str) -> Any:
-    """Strip markdown fences and parse JSON."""
     text = text.strip()
-    # Remove ```json ... ``` or ``` ... ```
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     return json.loads(text.strip())
@@ -42,7 +40,6 @@ def call_llm(
 ) -> str:
     """
     Call DeepSeek with exponential-backoff retry, then fall back to Claude.
-
     Returns the raw content string (or parsed dict if parse_json=True).
     """
     last_exc = None
@@ -58,7 +55,6 @@ def call_llm(
                 time.sleep(2 ** attempt)
                 continue
 
-    # All DeepSeek retries exhausted — use Claude
     print(f"[LLM] DeepSeek failed ({last_exc}), falling back to Claude")
     claude = _claude_client()
     resp = claude.messages.create(

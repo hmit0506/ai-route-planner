@@ -4,9 +4,9 @@ IntentAgent: parse natural-language user input into structured JSON intent.
 import json
 from typing import Dict, Any
 
-from route_planner.core.node import BaseNode
-from route_planner.core.state import RouteState
-from route_planner.llm.client import call_llm
+from route_planner.node import BaseNode
+from route_planner.state import RouteState
+from route_planner.llm import call_llm
 
 _SYSTEM_PROMPT = """\
 你是一个本地路线规划助手的意图解析模块。
@@ -56,8 +56,4 @@ class IntentNode(BaseNode):
         cats = "、".join(intent.get("must_include_categories", []))
         updates.append(f"已解析需求：{city}{area}，预算{budget}元，{cats}")
 
-        return {
-            **state,
-            "intent": intent,
-            "stream_updates": updates,
-        }
+        return {**state, "intent": intent, "stream_updates": updates}

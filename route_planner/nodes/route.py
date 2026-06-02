@@ -1,9 +1,9 @@
 import json
 from typing import Dict, Any
 
-from route_planner.core.node import BaseNode
-from route_planner.core.state import RouteState
-from route_planner.llm.client import call_llm
+from route_planner.node import BaseNode
+from route_planner.state import RouteState
+from route_planner.llm import call_llm
 
 _SYSTEM_PROMPT = """\
 你是一个本地路线规划助手。根据用户意图和候选POI，选出最优路线（3-5个地点）。

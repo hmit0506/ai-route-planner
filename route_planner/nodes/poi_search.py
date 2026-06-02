@@ -2,8 +2,8 @@ import json
 import os
 from typing import Dict, Any
 
-from route_planner.core.node import BaseNode
-from route_planner.core.state import RouteState
+from route_planner.node import BaseNode
+from route_planner.state import RouteState
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "mock_poi.json")
 
@@ -29,7 +29,6 @@ class POISearchNode(BaseNode):
         budget_pp = intent.get("budget_per_person", 9999)
 
         nearby = [p for p in _POI_DB if _area_match(p, area, city)]
-        # Fallback: same city only
         if len(nearby) < 5:
             nearby = [p for p in _POI_DB if city in p.get("city", "")]
 
@@ -37,15 +36,12 @@ class POISearchNode(BaseNode):
         for cat in must_cats:
             pool = [p for p in nearby if p["category"] == cat]
 
-            # Boost food_pref matches to front for 餐饮
             if cat == "餐饮" and food_pref:
                 preferred = [p for p in pool if any(fp in p.get("sub_category", "") for fp in food_pref)]
                 rest = [p for p in pool if p not in preferred]
                 pool = preferred + rest
 
-            # Soft budget filter: allow up to 20% over per-person budget
             pool = [p for p in pool if p.get("avg_price_per_person", 0) <= budget_pp * 1.2]
-
             pool.sort(key=lambda x: x.get("rating", 0), reverse=True)
             candidates[cat] = pool[:10]
 

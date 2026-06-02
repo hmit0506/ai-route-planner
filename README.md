@@ -20,7 +20,7 @@
 - **团购信息整合**：自动匹配可用团购套餐，标注折扣
 - **排队风险预警**：高峰期等位时间提示，建议最佳到店时间
 - **地图可视化**：高德静态地图打点，所有 POI 一图尽览
-- **多轮对话**：支持"换一家餐厅"、"去掉景点"等局部调整（Day 4 实现）
+- **多轮对话**：支持"换一家餐厅"、"去掉景点"等局部调整
 
 ---
 
@@ -79,13 +79,13 @@ cp .env.example .env
 
 ```bash
 # 完整流水线（推荐）
-python run_pipeline.py
+python scripts/run_pipeline.py
 
 # 自定义输入
-python run_pipeline.py "帮我找北京三里屯周六晚上，预算500元，想吃火锅"
+python scripts/run_pipeline.py "帮我找北京三里屯周六晚上，预算500元，想吃火锅"
 
-# 仅测试 IntentAgent（Day 1）
-python run_intent.py
+# 仅测试 IntentAgent
+python scripts/run_intent.py
 ```
 
 ### 预期输出
@@ -115,13 +115,11 @@ python run_intent.py
 
 ```
 ai-route-planner/
-├── src/route_planner/
-│   ├── core/
-│   │   ├── state.py        # RouteState TypedDict（全局状态）
-│   │   ├── node.py         # BaseNode 基类
-│   │   └── graph.py        # LangGraph 完整流水线
-│   ├── llm/
-│   │   └── client.py       # DeepSeek + Claude fallback，指数退避重试
+├── route_planner/          # 核心业务包
+│   ├── state.py            # RouteState TypedDict（全局状态）
+│   ├── node.py             # BaseNode 基类
+│   ├── graph.py            # LangGraph 完整流水线
+│   ├── llm.py              # DeepSeek + Claude fallback，指数退避重试
 │   ├── nodes/
 │   │   ├── intent.py       # IntentAgent：意图解析
 │   │   ├── poi_search.py   # POISearchAgent：候选召回
@@ -130,15 +128,22 @@ ai-route-planner/
 │   │   └── output.py       # OutputAgent：格式化输出
 │   └── data/
 │       └── mock_poi.json   # Mock POI 数据库（100条，覆盖上海主要商圈）
-├── run_pipeline.py         # 完整流水线测试脚本
-├── run_intent.py           # IntentAgent 单测脚本
-├── .env.example
-└── pyproject.toml
+├── app/                    # FastAPI 应用（开发中）
+│   ├── main.py             # 路由 + SSE 接口
+│   └── schemas.py          # Pydantic 请求/响应模型
+├── scripts/                # 调试脚本
+│   ├── run_pipeline.py     # 完整流水线测试
+│   └── run_intent.py       # IntentAgent 单测
+├── docs/
+│   └── ARCHITECTURE.md     # 系统架构详解
+├── README.md
+├── pyproject.toml
+└── .env.example
 ```
 
 ---
 
-## API 接口（Day 3 实现）
+## API 接口（开发中）
 
 ```
 POST /route/generate   # 首次生成路线（SSE 流式）
@@ -183,13 +188,13 @@ AMAP_API_KEY=...               # 高德地图静态图 API（由成员B填入）
 
 ## 开发进度
 
-- [x] Day 1（2026-06-02）：项目骨架 + IntentAgent + DeepSeek API 调通
-- [x] Day 2（2026-06-02）：完整 LangGraph 流水线，5个 Agent 全部接通，Mock POI 数据库（100条）
-- [ ] Day 3：FastAPI + SSE 流式输出
-- [ ] Day 4：RefineAgent 局部替换 + 多轮对话
-- [ ] Day 5：前后端联调
-- [ ] Day 6：优化（缓存、小红书风格输出）+ 录制 Demo
-- [ ] Day 7：文档整理 + 提交
+- [x] 项目骨架 + IntentAgent + DeepSeek API 调通
+- [x] 完整 LangGraph 流水线，5个 Agent 全部接通，Mock POI 数据库（100条）
+- [ ] FastAPI + SSE 流式输出
+- [ ] RefineAgent 局部替换 + 多轮对话
+- [ ] 前后端联调
+- [ ] 优化（缓存、小红书风格输出）+ 录制 Demo
+- [ ] 文档整理 + 提交
 
 ---
 

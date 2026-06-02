@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from route_planner.core.state import RouteState
+from route_planner.state import RouteState
 
 
 class BaseNode:

@@ -2,8 +2,8 @@ import math
 import os
 from typing import Dict, Any
 
-from route_planner.core.node import BaseNode
-from route_planner.core.state import RouteState
+from route_planner.node import BaseNode
+from route_planner.state import RouteState
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -48,7 +48,6 @@ def _build_summary(route: list) -> str:
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
     h, m = divmod(total_mins, 60)
     time_str = f"{h}小时{m}分钟" if m else f"{h}小时"
-
     gb_count = sum(1 for r in route if r.get("has_group_buy"))
     budget_used = sum(
         (r.get("group_buy") or {}).get("current_price", 0) or r.get("avg_price_per_person", 0)
@@ -61,7 +60,7 @@ def _build_summary(route: list) -> str:
 
 class OutputNode(BaseNode):
     def __call__(self, state: RouteState) -> Dict[str, Any]:
-        route = [dict(r) for r in state["route"]]  # shallow copy
+        route = [dict(r) for r in state["route"]]
 
         for i, poi in enumerate(route):
             poi["order"] = i + 1

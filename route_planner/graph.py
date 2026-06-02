@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 
-from route_planner.core.state import RouteState
+from route_planner.state import RouteState
 from route_planner.nodes.intent import IntentNode
 from route_planner.nodes.poi_search import POISearchNode
 from route_planner.nodes.route import RouteNode

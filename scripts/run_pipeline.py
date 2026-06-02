@@ -1,9 +1,9 @@
 """
-Day 2 smoke test: run full pipeline and print the final route.
+Smoke test: run full pipeline and print the final route.
 
 Usage:
-    python run_pipeline.py
-    python run_pipeline.py "帮我找北京三里屯附近的周六晚上，预算500元，想吃火锅"
+    python scripts/run_pipeline.py
+    python scripts/run_pipeline.py "帮我找北京三里屯周六晚上，预算500元，想吃火锅"
 """
 import json
 import os
@@ -11,10 +11,10 @@ import sys
 
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-from route_planner.core.graph import build_graph
-from route_planner.core.state import RouteState
+from route_planner.graph import build_graph
+from route_planner.state import RouteState
 
 DEFAULT_INPUT = "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点"
 
