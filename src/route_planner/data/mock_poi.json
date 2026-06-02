@@ -1,0 +1,1002 @@
+[
+  {
+    "id": "poi_001", "name": "外婆家（南京西路店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "南京西路1038号", "city": "上海", "area": "静安",
+    "lat": 31.2245, "lng": 121.4491,
+    "rating": 4.8, "taste_rating": 4.9, "decor_rating": 4.5, "service_rating": 4.7, "hygiene_rating": 4.8, "value_rating": 4.3,
+    "review_count": 8420, "half_year_sales": 12450, "avg_price_per_person": 128,
+    "queue_risk": "高", "queue_minutes_peak": 40, "queue_minutes_offpeak": 10,
+    "has_group_buy": true, "group_buy_title": "双人尊享套餐", "group_buy_original_price": 380, "group_buy_current_price": 258,
+    "business_hours": "11:00-21:30", "trend_tag": "火爆", "recommend_count": 1240
+  },
+  {
+    "id": "poi_002", "name": "南翔馒头店（城隍庙总店）", "category": "餐饮", "sub_category": "本帮点心",
+    "address": "豫园路85号", "city": "上海", "area": "外滩",
+    "lat": 31.2270, "lng": 121.4893,
+    "rating": 4.7, "taste_rating": 4.8, "decor_rating": 4.0, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.6,
+    "review_count": 15600, "half_year_sales": 28900, "avg_price_per_person": 65,
+    "queue_risk": "高", "queue_minutes_peak": 60, "queue_minutes_offpeak": 20,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "08:30-21:00", "trend_tag": "火爆", "recommend_count": 2100
+  },
+  {
+    "id": "poi_003", "name": "鼎泰丰（新天地店）", "category": "餐饮", "sub_category": "台湾菜",
+    "address": "马当路181号新天地北里", "city": "上海", "area": "新天地",
+    "lat": 31.2195, "lng": 121.4718,
+    "rating": 4.9, "taste_rating": 4.9, "decor_rating": 4.8, "service_rating": 4.9, "hygiene_rating": 4.9, "value_rating": 4.0,
+    "review_count": 12300, "half_year_sales": 9800, "avg_price_per_person": 220,
+    "queue_risk": "中", "queue_minutes_peak": 30, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "精致双人套餐", "group_buy_original_price": 520, "group_buy_current_price": 398,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 980
+  },
+  {
+    "id": "poi_004", "name": "老克勒（思南路店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "思南路23号", "city": "上海", "area": "淮海路",
+    "lat": 31.2180, "lng": 121.4660,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 4.4,
+    "review_count": 3200, "half_year_sales": 4100, "avg_price_per_person": 168,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "沪味双人套餐", "group_buy_original_price": 420, "group_buy_current_price": 298,
+    "business_hours": "11:30-22:00", "trend_tag": "宝藏", "recommend_count": 320
+  },
+  {
+    "id": "poi_005", "name": "沈大成（南京东路店）", "category": "餐饮", "sub_category": "本帮点心",
+    "address": "南京东路636号", "city": "上海", "area": "外滩",
+    "lat": 31.2363, "lng": 121.4792,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 3.8, "service_rating": 4.2, "hygiene_rating": 4.4, "value_rating": 4.8,
+    "review_count": 6700, "half_year_sales": 11200, "avg_price_per_person": 45,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "07:00-21:00", "trend_tag": "老字号", "recommend_count": 780
+  },
+  {
+    "id": "poi_006", "name": "陕西南路·Alimentari", "category": "餐饮", "sub_category": "西餐",
+    "address": "陕西南路120号", "city": "上海", "area": "淮海路",
+    "lat": 31.2210, "lng": 121.4584,
+    "rating": 4.7, "taste_rating": 4.7, "decor_rating": 4.9, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 4.2,
+    "review_count": 2100, "half_year_sales": 3400, "avg_price_per_person": 198,
+    "queue_risk": "低", "queue_minutes_peak": 15, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "12:00-22:30", "trend_tag": "宝藏", "recommend_count": 210
+  },
+  {
+    "id": "poi_007", "name": "洪长兴涮羊肉（南京路店）", "category": "餐饮", "sub_category": "火锅",
+    "address": "南京东路560号", "city": "上海", "area": "外滩",
+    "lat": 31.2360, "lng": 121.4770,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.0, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.5,
+    "review_count": 5400, "half_year_sales": 7800, "avg_price_per_person": 120,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "双人涮锅套餐", "group_buy_original_price": 298, "group_buy_current_price": 218,
+    "business_hours": "11:00-22:00", "trend_tag": "老字号", "recommend_count": 560
+  },
+  {
+    "id": "poi_008", "name": "海底捞（陆家嘴店）", "category": "餐饮", "sub_category": "火锅",
+    "address": "陆家嘴环路1000号正大广场6F", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2408, "lng": 121.5064,
+    "rating": 4.6, "taste_rating": 4.5, "decor_rating": 4.7, "service_rating": 4.9, "hygiene_rating": 4.8, "value_rating": 4.0,
+    "review_count": 18900, "half_year_sales": 22100, "avg_price_per_person": 158,
+    "queue_risk": "高", "queue_minutes_peak": 50, "queue_minutes_offpeak": 15,
+    "has_group_buy": true, "group_buy_title": "双人火锅畅享套餐", "group_buy_original_price": 398, "group_buy_current_price": 318,
+    "business_hours": "10:00-次日06:00", "trend_tag": "火爆", "recommend_count": 1890
+  },
+  {
+    "id": "poi_009", "name": "绿波廊（豫园店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "豫园路115号", "city": "上海", "area": "外滩",
+    "lat": 31.2268, "lng": 121.4910,
+    "rating": 4.7, "taste_rating": 4.8, "decor_rating": 4.7, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 4.2,
+    "review_count": 4600, "half_year_sales": 5900, "avg_price_per_person": 198,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "招牌双人套餐", "group_buy_original_price": 468, "group_buy_current_price": 328,
+    "business_hours": "11:00-21:30", "trend_tag": "热门", "recommend_count": 670
+  },
+  {
+    "id": "poi_010", "name": "Mr & Mrs Bund", "category": "餐饮", "sub_category": "法餐",
+    "address": "中山东一路18号6楼", "city": "上海", "area": "外滩",
+    "lat": 31.2390, "lng": 121.4894,
+    "rating": 4.8, "taste_rating": 4.8, "decor_rating": 4.9, "service_rating": 4.8, "hygiene_rating": 4.9, "value_rating": 3.8,
+    "review_count": 3100, "half_year_sales": 2800, "avg_price_per_person": 680,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "18:00-23:00", "trend_tag": "高端", "recommend_count": 380
+  },
+  {
+    "id": "poi_011", "name": "外滩观光隧道", "category": "娱乐", "sub_category": "特色体验",
+    "address": "中山东一路300号（浦西入口）", "city": "上海", "area": "外滩",
+    "lat": 31.2312, "lng": 121.4872,
+    "rating": 4.0, "taste_rating": 0, "decor_rating": 4.2, "service_rating": 4.0, "hygiene_rating": 4.1, "value_rating": 3.8,
+    "review_count": 22000, "half_year_sales": 18000, "avg_price_per_person": 60,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "单程票", "group_buy_original_price": 80, "group_buy_current_price": 60,
+    "business_hours": "08:00-22:00", "trend_tag": "热门", "recommend_count": 1100
+  },
+  {
+    "id": "poi_012", "name": "上海外滩美术馆", "category": "文化", "sub_category": "当代艺术",
+    "address": "虎丘路20号", "city": "上海", "area": "外滩",
+    "lat": 31.2430, "lng": 121.4890,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.4,
+    "review_count": 3800, "half_year_sales": 4200, "avg_price_per_person": 50,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-18:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 420
+  },
+  {
+    "id": "poi_013", "name": "豫园", "category": "文化", "sub_category": "历史建筑",
+    "address": "安仁街132号", "city": "上海", "area": "外滩",
+    "lat": 31.2272, "lng": 121.4920,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.2, "hygiene_rating": 4.3, "value_rating": 4.0,
+    "review_count": 45000, "half_year_sales": 62000, "avg_price_per_person": 40,
+    "queue_risk": "高", "queue_minutes_peak": 30, "queue_minutes_offpeak": 10,
+    "has_group_buy": true, "group_buy_title": "成人门票", "group_buy_original_price": 40, "group_buy_current_price": 35,
+    "business_hours": "08:30-17:30", "trend_tag": "火爆", "recommend_count": 3200
+  },
+  {
+    "id": "poi_014", "name": "上海历史博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "南京西路325号", "city": "上海", "area": "静安",
+    "lat": 31.2282, "lng": 121.4644,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 5.0,
+    "review_count": 12000, "half_year_sales": 18000, "avg_price_per_person": 0,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "热门", "recommend_count": 1500
+  },
+  {
+    "id": "poi_015", "name": "上海博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "人民大道201号", "city": "上海", "area": "人民广场",
+    "lat": 31.2295, "lng": 121.4740,
+    "rating": 4.8, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.8, "value_rating": 5.0,
+    "review_count": 28000, "half_year_sales": 35000, "avg_price_per_person": 0,
+    "queue_risk": "高", "queue_minutes_peak": 40, "queue_minutes_offpeak": 15,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "必打卡", "recommend_count": 4200
+  },
+  {
+    "id": "poi_016", "name": "上海当代艺术馆（MoCA）", "category": "文化", "sub_category": "当代艺术",
+    "address": "人民公园7号门", "city": "上海", "area": "人民广场",
+    "lat": 31.2318, "lng": 121.4710,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.0,
+    "review_count": 5600, "half_year_sales": 7200, "avg_price_per_person": 50,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 60, "group_buy_current_price": 48,
+    "business_hours": "10:00-18:00", "trend_tag": "热门", "recommend_count": 580
+  },
+  {
+    "id": "poi_017", "name": "外滩风景区", "category": "自然", "sub_category": "城市景观",
+    "address": "中山东一路（全段）", "city": "上海", "area": "外滩",
+    "lat": 31.2397, "lng": 121.4898,
+    "rating": 4.8, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 98000, "half_year_sales": 120000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "必打卡", "recommend_count": 8900
+  },
+  {
+    "id": "poi_018", "name": "新天地广场", "category": "购物", "sub_category": "商业街区",
+    "address": "太仓路181号", "city": "上海", "area": "新天地",
+    "lat": 31.2185, "lng": 121.4730,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.4, "hygiene_rating": 4.7, "value_rating": 4.0,
+    "review_count": 32000, "half_year_sales": 45000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "火爆", "recommend_count": 2800
+  },
+  {
+    "id": "poi_019", "name": "上海城市规划展示馆", "category": "文化", "sub_category": "博物馆",
+    "address": "人民大道100号", "city": "上海", "area": "人民广场",
+    "lat": 31.2310, "lng": 121.4748,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.5,
+    "review_count": 8900, "half_year_sales": 11000, "avg_price_per_person": 30,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "热门", "recommend_count": 890
+  },
+  {
+    "id": "poi_020", "name": "思南公馆", "category": "文化", "sub_category": "历史建筑",
+    "address": "思南路45-73号", "city": "上海", "area": "淮海路",
+    "lat": 31.2165, "lng": 121.4655,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.4, "hygiene_rating": 4.7, "value_rating": 4.8,
+    "review_count": 7200, "half_year_sales": 9500, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "热门", "recommend_count": 980
+  },
+  {
+    "id": "poi_021", "name": "武康路历史风貌街区", "category": "文化", "sub_category": "历史建筑",
+    "address": "武康路（全段）", "city": "上海", "area": "徐汇",
+    "lat": 31.2070, "lng": 121.4465,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.3, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 18000, "half_year_sales": 25000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "必打卡", "recommend_count": 2100
+  },
+  {
+    "id": "poi_022", "name": "上海交响乐团音乐厅", "category": "文化", "sub_category": "演艺",
+    "address": "复兴中路1380号", "city": "上海", "area": "徐汇",
+    "lat": 31.2095, "lng": 121.4552,
+    "rating": 4.8, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.7, "hygiene_rating": 4.9, "value_rating": 4.2,
+    "review_count": 4100, "half_year_sales": 3800, "avg_price_per_person": 280,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "演出日开放", "trend_tag": "高端", "recommend_count": 420
+  },
+  {
+    "id": "poi_023", "name": "1933老场坊", "category": "文化", "sub_category": "工业遗址",
+    "address": "沙泾路10号", "city": "上海", "area": "虹口",
+    "lat": 31.2565, "lng": 121.5008,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.6,
+    "review_count": 9200, "half_year_sales": 11500, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-21:00", "trend_tag": "宝藏", "recommend_count": 760
+  },
+  {
+    "id": "poi_024", "name": "上海科技馆", "category": "文化", "sub_category": "博物馆",
+    "address": "世纪大道2000号", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2198, "lng": 121.5440,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.3,
+    "review_count": 21000, "half_year_sales": 28000, "avg_price_per_person": 60,
+    "queue_risk": "高", "queue_minutes_peak": 35, "queue_minutes_offpeak": 10,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 60, "group_buy_current_price": 55,
+    "business_hours": "09:00-17:15（周一闭馆）", "trend_tag": "热门", "recommend_count": 1800
+  },
+  {
+    "id": "poi_025", "name": "上海自然博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "静安雕塑公园内", "city": "上海", "area": "静安",
+    "lat": 31.2348, "lng": 121.4569,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.8, "value_rating": 4.5,
+    "review_count": 16000, "half_year_sales": 22000, "avg_price_per_person": 30,
+    "queue_risk": "高", "queue_minutes_peak": 45, "queue_minutes_offpeak": 15,
+    "has_group_buy": true, "group_buy_title": "成人参观票", "group_buy_original_price": 30, "group_buy_current_price": 28,
+    "business_hours": "09:00-17:15（周一闭馆）", "trend_tag": "火爆", "recommend_count": 2200
+  },
+  {
+    "id": "poi_026", "name": "东方明珠广播电视塔", "category": "文化", "sub_category": "地标建筑",
+    "address": "陆家嘴世纪大道1号", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2396, "lng": 121.4997,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.2, "hygiene_rating": 4.4, "value_rating": 3.8,
+    "review_count": 56000, "half_year_sales": 72000, "avg_price_per_person": 180,
+    "queue_risk": "高", "queue_minutes_peak": 50, "queue_minutes_offpeak": 20,
+    "has_group_buy": true, "group_buy_title": "球层票（含历史馆）", "group_buy_original_price": 220, "group_buy_current_price": 178,
+    "business_hours": "08:00-21:30", "trend_tag": "必打卡", "recommend_count": 4500
+  },
+  {
+    "id": "poi_027", "name": "上海中心大厦观光厅", "category": "文化", "sub_category": "地标建筑",
+    "address": "银城中路501号", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2353, "lng": 121.5055,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 4.0,
+    "review_count": 18000, "half_year_sales": 21000, "avg_price_per_person": 160,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "观光票", "group_buy_original_price": 180, "group_buy_current_price": 158,
+    "business_hours": "08:30-22:00", "trend_tag": "热门", "recommend_count": 1900
+  },
+  {
+    "id": "poi_028", "name": "建投书局（外滩店）", "category": "文化", "sub_category": "书店",
+    "address": "中山东二路600号", "city": "上海", "area": "外滩",
+    "lat": 31.2328, "lng": 121.4922,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.4,
+    "review_count": 4200, "half_year_sales": 5100, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "宝藏", "recommend_count": 560
+  },
+  {
+    "id": "poi_029", "name": "朵云书院（旗舰店·上海中心）", "category": "文化", "sub_category": "书店",
+    "address": "银城中路501号52楼", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2353, "lng": 121.5055,
+    "rating": 4.8, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.7, "hygiene_rating": 4.8, "value_rating": 4.5,
+    "review_count": 6800, "half_year_sales": 8200, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-22:00", "trend_tag": "宝藏", "recommend_count": 720
+  },
+  {
+    "id": "poi_030", "name": "上海多伦现代美术馆", "category": "文化", "sub_category": "当代艺术",
+    "address": "多伦路27号", "city": "上海", "area": "虹口",
+    "lat": 31.2630, "lng": 121.4855,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.3,
+    "review_count": 3100, "half_year_sales": 3800, "avg_price_per_person": 20,
+    "queue_risk": "低", "queue_minutes_peak": 5, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-18:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 290
+  },
+  {
+    "id": "poi_031", "name": "猫的天空之城（新天地店）", "category": "餐饮", "sub_category": "咖啡轻食",
+    "address": "太仓路181号新天地北里", "city": "上海", "area": "新天地",
+    "lat": 31.2192, "lng": 121.4725,
+    "rating": 4.5, "taste_rating": 4.4, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 4.1,
+    "review_count": 4800, "half_year_sales": 6200, "avg_price_per_person": 68,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人下午茶套餐", "group_buy_original_price": 148, "group_buy_current_price": 108,
+    "business_hours": "10:00-22:00", "trend_tag": "热门", "recommend_count": 540
+  },
+  {
+    "id": "poi_032", "name": "Manner Coffee（外滩店）", "category": "餐饮", "sub_category": "咖啡",
+    "address": "中山东一路22号", "city": "上海", "area": "外滩",
+    "lat": 31.2395, "lng": 121.4900,
+    "rating": 4.5, "taste_rating": 4.5, "decor_rating": 4.4, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.7,
+    "review_count": 3200, "half_year_sales": 5800, "avg_price_per_person": 28,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "07:30-21:00", "trend_tag": "热门", "recommend_count": 620
+  },
+  {
+    "id": "poi_033", "name": "M on the Bund", "category": "餐饮", "sub_category": "地中海餐",
+    "address": "广东路20号外滩源6F", "city": "上海", "area": "外滩",
+    "lat": 31.2418, "lng": 121.4904,
+    "rating": 4.7, "taste_rating": 4.7, "decor_rating": 4.9, "service_rating": 4.7, "hygiene_rating": 4.8, "value_rating": 3.9,
+    "review_count": 2800, "half_year_sales": 2200, "avg_price_per_person": 520,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "12:00-14:30, 18:00-22:30", "trend_tag": "高端", "recommend_count": 310
+  },
+  {
+    "id": "poi_034", "name": "杏花楼（福州路总店）", "category": "餐饮", "sub_category": "粤菜",
+    "address": "福州路343号", "city": "上海", "area": "外滩",
+    "lat": 31.2332, "lng": 121.4817,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.3, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.4,
+    "review_count": 7800, "half_year_sales": 9400, "avg_price_per_person": 138,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "四人粤菜套餐", "group_buy_original_price": 698, "group_buy_current_price": 498,
+    "business_hours": "11:00-21:30", "trend_tag": "老字号", "recommend_count": 860
+  },
+  {
+    "id": "poi_035", "name": "德兴馆（广东路店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "广东路471号", "city": "上海", "area": "外滩",
+    "lat": 31.2355, "lng": 121.4845,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.2, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.6,
+    "review_count": 5200, "half_year_sales": 7100, "avg_price_per_person": 98,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:30-20:30", "trend_tag": "老字号", "recommend_count": 640
+  },
+  {
+    "id": "poi_036", "name": "荣荣面馆（南京西路店）", "category": "餐饮", "sub_category": "面食",
+    "address": "南京西路580号", "city": "上海", "area": "静安",
+    "lat": 31.2260, "lng": 121.4608,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.3, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.7,
+    "review_count": 4100, "half_year_sales": 6800, "avg_price_per_person": 58,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-21:00", "trend_tag": "热门", "recommend_count": 480
+  },
+  {
+    "id": "poi_037", "name": "光明邨大酒家（淮海中路）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "淮海中路588号", "city": "上海", "area": "淮海路",
+    "lat": 31.2205, "lng": 121.4645,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.2, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.7,
+    "review_count": 9800, "half_year_sales": 14200, "avg_price_per_person": 78,
+    "queue_risk": "高", "queue_minutes_peak": 35, "queue_minutes_offpeak": 10,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "07:00-21:00", "trend_tag": "老字号", "recommend_count": 1200
+  },
+  {
+    "id": "poi_038", "name": "避风塘（陆家嘴店）", "category": "餐饮", "sub_category": "港式茶餐厅",
+    "address": "陆家嘴环路1000号正大广场5F", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2408, "lng": 121.5064,
+    "rating": 4.4, "taste_rating": 4.5, "decor_rating": 4.3, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.3,
+    "review_count": 6300, "half_year_sales": 8900, "avg_price_per_person": 98,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "港式双人套餐", "group_buy_original_price": 238, "group_buy_current_price": 178,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 720
+  },
+  {
+    "id": "poi_039", "name": "小南国（黄浦旗舰店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "黄浦路199号", "city": "上海", "area": "外滩",
+    "lat": 31.2445, "lng": 121.4935,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.6, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.2,
+    "review_count": 7100, "half_year_sales": 9200, "avg_price_per_person": 168,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "三人精选套餐", "group_buy_original_price": 598, "group_buy_current_price": 438,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 890
+  },
+  {
+    "id": "poi_040", "name": "喜粤8号（新天地店）", "category": "餐饮", "sub_category": "粤菜",
+    "address": "湖滨路168号企业天地3号楼", "city": "上海", "area": "新天地",
+    "lat": 31.2218, "lng": 121.4700,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.5, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.0,
+    "review_count": 3400, "half_year_sales": 4600, "avg_price_per_person": 188,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人精致午市", "group_buy_original_price": 398, "group_buy_current_price": 298,
+    "business_hours": "11:00-14:30, 17:30-22:00", "trend_tag": "热门", "recommend_count": 340
+  },
+  {
+    "id": "poi_041", "name": "人民公园", "category": "自然", "sub_category": "城市公园",
+    "address": "南京西路231号", "city": "上海", "area": "人民广场",
+    "lat": 31.2328, "lng": 121.4695,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 5.0,
+    "review_count": 38000, "half_year_sales": 50000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "05:00-20:00", "trend_tag": "热门", "recommend_count": 2100
+  },
+  {
+    "id": "poi_042", "name": "复兴公园", "category": "自然", "sub_category": "城市公园",
+    "address": "皋兰路2号", "city": "上海", "area": "淮海路",
+    "lat": 31.2158, "lng": 121.4648,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.2, "hygiene_rating": 4.5, "value_rating": 5.0,
+    "review_count": 15000, "half_year_sales": 22000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "06:00-18:00", "trend_tag": "热门", "recommend_count": 1100
+  },
+  {
+    "id": "poi_043", "name": "黄浦江游船（外滩码头）", "category": "娱乐", "sub_category": "游船",
+    "address": "中山东一路码头", "city": "上海", "area": "外滩",
+    "lat": 31.2388, "lng": 121.4902,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.3, "hygiene_rating": 4.3, "value_rating": 4.0,
+    "review_count": 12000, "half_year_sales": 15000, "avg_price_per_person": 120,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "单人船票（1小时）", "group_buy_original_price": 150, "group_buy_current_price": 120,
+    "business_hours": "10:00-22:00", "trend_tag": "热门", "recommend_count": 1200
+  },
+  {
+    "id": "poi_044", "name": "城隍庙旅游区", "category": "文化", "sub_category": "历史建筑",
+    "address": "方浜中路249号", "city": "上海", "area": "外滩",
+    "lat": 31.2255, "lng": 121.4920,
+    "rating": 4.3, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.0, "hygiene_rating": 4.2, "value_rating": 4.4,
+    "review_count": 55000, "half_year_sales": 72000, "avg_price_per_person": 0,
+    "queue_risk": "高", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "火爆", "recommend_count": 3800
+  },
+  {
+    "id": "poi_045", "name": "外滩源（圆明园路）", "category": "文化", "sub_category": "历史建筑",
+    "address": "圆明园路（全段）", "city": "上海", "area": "外滩",
+    "lat": 31.2430, "lng": 121.4882,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.3, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 8200, "half_year_sales": 12000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "宝藏", "recommend_count": 890
+  },
+  {
+    "id": "poi_046", "name": "上海电影博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "漕溪北路595号", "city": "上海", "area": "徐汇",
+    "lat": 31.1850, "lng": 121.4370,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 4.3,
+    "review_count": 9800, "half_year_sales": 12500, "avg_price_per_person": 60,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 60, "group_buy_current_price": 55,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "热门", "recommend_count": 820
+  },
+  {
+    "id": "poi_047", "name": "田子坊", "category": "文化", "sub_category": "创意街区",
+    "address": "泰康路210弄", "city": "上海", "area": "淮海路",
+    "lat": 31.2088, "lng": 121.4720,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.2, "hygiene_rating": 4.3, "value_rating": 4.6,
+    "review_count": 42000, "half_year_sales": 58000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "火爆", "recommend_count": 3500
+  },
+  {
+    "id": "poi_048", "name": "M50创意园", "category": "文化", "sub_category": "创意街区",
+    "address": "莫干山路50号", "city": "上海", "area": "普陀",
+    "lat": 31.2498, "lng": 121.4470,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.2, "hygiene_rating": 4.4, "value_rating": 4.8,
+    "review_count": 11000, "half_year_sales": 15000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-18:00", "trend_tag": "宝藏", "recommend_count": 980
+  },
+  {
+    "id": "poi_049", "name": "K11购物艺术中心", "category": "购物", "sub_category": "艺术商场",
+    "address": "淮海中路300号", "city": "上海", "area": "淮海路",
+    "lat": 31.2202, "lng": 121.4688,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.0,
+    "review_count": 25000, "half_year_sales": 38000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "火爆", "recommend_count": 2100
+  },
+  {
+    "id": "poi_050", "name": "恒隆广场", "category": "购物", "sub_category": "高端商场",
+    "address": "南京西路1266号", "city": "上海", "area": "静安",
+    "lat": 31.2260, "lng": 121.4520,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 3.8,
+    "review_count": 18000, "half_year_sales": 25000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "高端", "recommend_count": 1200
+  },
+  {
+    "id": "poi_051", "name": "南京路步行街", "category": "购物", "sub_category": "商业街",
+    "address": "南京东路（全段）", "city": "上海", "area": "外滩",
+    "lat": 31.2360, "lng": 121.4750,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.1, "hygiene_rating": 4.3, "value_rating": 4.5,
+    "review_count": 88000, "half_year_sales": 120000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "必打卡", "recommend_count": 5200
+  },
+  {
+    "id": "poi_052", "name": "淮海中路（购物街）", "category": "购物", "sub_category": "商业街",
+    "address": "淮海中路（全段）", "city": "上海", "area": "淮海路",
+    "lat": 31.2195, "lng": 121.4655,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 42000, "half_year_sales": 60000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "热门", "recommend_count": 2800
+  },
+  {
+    "id": "poi_053", "name": "上生·新所", "category": "文化", "sub_category": "创意街区",
+    "address": "延安西路1262号", "city": "上海", "area": "长宁",
+    "lat": 31.2155, "lng": 121.4320,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.8,
+    "review_count": 14000, "half_year_sales": 19000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "火爆", "recommend_count": 1500
+  },
+  {
+    "id": "poi_054", "name": "洛克·外滩源", "category": "文化", "sub_category": "历史建筑",
+    "address": "虎丘路27号", "city": "上海", "area": "外滩",
+    "lat": 31.2432, "lng": 121.4885,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.3, "hygiene_rating": 4.6, "value_rating": 4.7,
+    "review_count": 6800, "half_year_sales": 9200, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "热门", "recommend_count": 780
+  },
+  {
+    "id": "poi_055", "name": "上海音乐厅", "category": "文化", "sub_category": "演艺",
+    "address": "延安东路523号", "city": "上海", "area": "人民广场",
+    "lat": 31.2270, "lng": 121.4745,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 4.3,
+    "review_count": 5600, "half_year_sales": 4800, "avg_price_per_person": 180,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "演出日开放", "trend_tag": "热门", "recommend_count": 480
+  },
+  {
+    "id": "poi_056", "name": "上海艺术品博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "虎丘路20号2楼", "city": "上海", "area": "外滩",
+    "lat": 31.2430, "lng": 121.4890,
+    "rating": 4.3, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.2, "hygiene_rating": 4.4, "value_rating": 4.2,
+    "review_count": 1800, "half_year_sales": 2200, "avg_price_per_person": 30,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-17:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 180
+  },
+  {
+    "id": "poi_057", "name": "上海玻璃博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "长江西路685号", "city": "上海", "area": "宝山",
+    "lat": 31.3680, "lng": 121.4412,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 4.3,
+    "review_count": 7200, "half_year_sales": 9500, "avg_price_per_person": 80,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 80, "group_buy_current_price": 72,
+    "business_hours": "10:00-17:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 680
+  },
+  {
+    "id": "poi_058", "name": "上海中国航海博物馆", "category": "文化", "sub_category": "博物馆",
+    "address": "临港新城申港大道197号", "city": "上海", "area": "临港",
+    "lat": 30.8850, "lng": 121.9000,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.5,
+    "review_count": 4100, "half_year_sales": 5200, "avg_price_per_person": 30,
+    "queue_risk": "低", "queue_minutes_peak": 5, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 390
+  },
+  {
+    "id": "poi_059", "name": "半岛酒店大堂吧·The Lobby", "category": "餐饮", "sub_category": "下午茶",
+    "address": "中山东一路32号", "city": "上海", "area": "外滩",
+    "lat": 31.2414, "lng": 121.4900,
+    "rating": 4.8, "taste_rating": 4.8, "decor_rating": 4.9, "service_rating": 4.9, "hygiene_rating": 4.9, "value_rating": 3.9,
+    "review_count": 2800, "half_year_sales": 3200, "avg_price_per_person": 380,
+    "queue_risk": "低", "queue_minutes_peak": 15, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:30-18:00", "trend_tag": "高端", "recommend_count": 280
+  },
+  {
+    "id": "poi_060", "name": "和平饭店吧（Jazz Bar）", "category": "娱乐", "sub_category": "爵士酒吧",
+    "address": "南京东路20号和平饭店", "city": "上海", "area": "外滩",
+    "lat": 31.2418, "lng": 121.4896,
+    "rating": 4.6, "taste_rating": 4.4, "decor_rating": 4.9, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 3.8,
+    "review_count": 3500, "half_year_sales": 2900, "avg_price_per_person": 280,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "18:00-01:00", "trend_tag": "高端", "recommend_count": 350
+  },
+  {
+    "id": "poi_061", "name": "淮扬府（外滩店）", "category": "餐饮", "sub_category": "淮扬菜",
+    "address": "中山东一路2号3楼", "city": "上海", "area": "外滩",
+    "lat": 31.2402, "lng": 121.4896,
+    "rating": 4.7, "taste_rating": 4.7, "decor_rating": 4.8, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 4.0,
+    "review_count": 4200, "half_year_sales": 5100, "avg_price_per_person": 258,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人精致套餐", "group_buy_original_price": 598, "group_buy_current_price": 468,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 440
+  },
+  {
+    "id": "poi_062", "name": "苏浙汇（新天地店）", "category": "餐饮", "sub_category": "江浙菜",
+    "address": "淮海中路222号新天地时尚购物中心5F", "city": "上海", "area": "新天地",
+    "lat": 31.2196, "lng": 121.4716,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.5, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.2,
+    "review_count": 5600, "half_year_sales": 7200, "avg_price_per_person": 148,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人家宴套餐", "group_buy_original_price": 358, "group_buy_current_price": 268,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 590
+  },
+  {
+    "id": "poi_063", "name": "新荣记（虹桥路店）", "category": "餐饮", "sub_category": "台州海鲜",
+    "address": "虹桥路1号", "city": "上海", "area": "长宁",
+    "lat": 31.2080, "lng": 121.4120,
+    "rating": 4.9, "taste_rating": 4.9, "decor_rating": 4.8, "service_rating": 4.8, "hygiene_rating": 4.9, "value_rating": 3.8,
+    "review_count": 3200, "half_year_sales": 2800, "avg_price_per_person": 680,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:30-14:00, 17:30-22:00", "trend_tag": "高端", "recommend_count": 280
+  },
+  {
+    "id": "poi_064", "name": "七宝老街", "category": "文化", "sub_category": "历史街区",
+    "address": "七宝镇老街", "city": "上海", "area": "闵行",
+    "lat": 31.1560, "lng": 121.3538,
+    "rating": 4.3, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.1, "hygiene_rating": 4.2, "value_rating": 4.7,
+    "review_count": 28000, "half_year_sales": 38000, "avg_price_per_person": 0,
+    "queue_risk": "高", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "热门", "recommend_count": 2200
+  },
+  {
+    "id": "poi_065", "name": "大宁灵石公园", "category": "自然", "sub_category": "城市公园",
+    "address": "共和新路1468号", "city": "上海", "area": "静安",
+    "lat": 31.2820, "lng": 121.4552,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 5.0,
+    "review_count": 12000, "half_year_sales": 18000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "06:00-18:00", "trend_tag": "热门", "recommend_count": 890
+  },
+  {
+    "id": "poi_066", "name": "陆家嘴滨江大道", "category": "自然", "sub_category": "城市景观",
+    "address": "陆家嘴滨江大道", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2350, "lng": 121.5050,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 45000, "half_year_sales": 62000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "必打卡", "recommend_count": 3800
+  },
+  {
+    "id": "poi_067", "name": "上海迪士尼乐园", "category": "娱乐", "sub_category": "主题乐园",
+    "address": "川沙新镇黄赵路310号", "city": "上海", "area": "浦东",
+    "lat": 31.1440, "lng": 121.6665,
+    "rating": 4.7, "taste_rating": 4.2, "decor_rating": 4.9, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 3.8,
+    "review_count": 120000, "half_year_sales": 180000, "avg_price_per_person": 580,
+    "queue_risk": "高", "queue_minutes_peak": 90, "queue_minutes_offpeak": 30,
+    "has_group_buy": true, "group_buy_title": "成人单日票", "group_buy_original_price": 699, "group_buy_current_price": 619,
+    "business_hours": "08:30-22:00", "trend_tag": "火爆", "recommend_count": 9800
+  },
+  {
+    "id": "poi_068", "name": "上海野生动物园", "category": "娱乐", "sub_category": "动物园",
+    "address": "南六公路178号", "city": "上海", "area": "浦东",
+    "lat": 31.0620, "lng": 121.6102,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.3, "hygiene_rating": 4.3, "value_rating": 4.0,
+    "review_count": 32000, "half_year_sales": 42000, "avg_price_per_person": 180,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 210, "group_buy_current_price": 178,
+    "business_hours": "08:30-17:00", "trend_tag": "热门", "recommend_count": 2400
+  },
+  {
+    "id": "poi_069", "name": "上海海洋水族馆", "category": "娱乐", "sub_category": "水族馆",
+    "address": "陆家嘴环路1388号", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2420, "lng": 121.5028,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.5, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 3.9,
+    "review_count": 28000, "half_year_sales": 36000, "avg_price_per_person": 160,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "成人票", "group_buy_original_price": 180, "group_buy_current_price": 158,
+    "business_hours": "09:00-21:00", "trend_tag": "热门", "recommend_count": 2100
+  },
+  {
+    "id": "poi_070", "name": "上海欢乐谷", "category": "娱乐", "sub_category": "主题乐园",
+    "address": "申迪西路100号", "city": "上海", "area": "浦东",
+    "lat": 31.2180, "lng": 121.6320,
+    "rating": 4.2, "taste_rating": 0, "decor_rating": 4.4, "service_rating": 4.1, "hygiene_rating": 4.2, "value_rating": 4.0,
+    "review_count": 42000, "half_year_sales": 55000, "avg_price_per_person": 280,
+    "queue_risk": "高", "queue_minutes_peak": 60, "queue_minutes_offpeak": 20,
+    "has_group_buy": true, "group_buy_title": "成人单日票", "group_buy_original_price": 329, "group_buy_current_price": 258,
+    "business_hours": "09:30-21:00", "trend_tag": "热门", "recommend_count": 3100
+  },
+  {
+    "id": "poi_071", "name": "文庙（上海孔庙）", "category": "文化", "sub_category": "历史建筑",
+    "address": "文庙路215号", "city": "上海", "area": "黄浦",
+    "lat": 31.2222, "lng": 121.4800,
+    "rating": 4.4, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.2, "hygiene_rating": 4.4, "value_rating": 4.6,
+    "review_count": 6800, "half_year_sales": 9200, "avg_price_per_person": 10,
+    "queue_risk": "低", "queue_minutes_peak": 5, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 590
+  },
+  {
+    "id": "poi_072", "name": "上海犹太难民纪念馆", "category": "文化", "sub_category": "纪念馆",
+    "address": "长阳路62号", "city": "上海", "area": "虹口",
+    "lat": 31.2598, "lng": 121.5018,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 4.8,
+    "review_count": 4500, "half_year_sales": 5800, "avg_price_per_person": 50,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-17:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 410
+  },
+  {
+    "id": "poi_073", "name": "苏州河沿岸艺术区", "category": "文化", "sub_category": "创意街区",
+    "address": "苏州河南岸（全段）", "city": "上海", "area": "普陀",
+    "lat": 31.2490, "lng": 121.4490,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 5.0,
+    "review_count": 9200, "half_year_sales": 13000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "热门", "recommend_count": 820
+  },
+  {
+    "id": "poi_074", "name": "老码头创意园区", "category": "文化", "sub_category": "创意街区",
+    "address": "中山南路479号", "city": "上海", "area": "外滩",
+    "lat": 31.2255, "lng": 121.4952,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.8, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.7,
+    "review_count": 7800, "half_year_sales": 11000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天", "trend_tag": "热门", "recommend_count": 720
+  },
+  {
+    "id": "poi_075", "name": "上海国际电影节展映影院", "category": "娱乐", "sub_category": "电影院",
+    "address": "淮海中路686号", "city": "上海", "area": "淮海路",
+    "lat": 31.2198, "lng": 121.4640,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.4,
+    "review_count": 8200, "half_year_sales": 11500, "avg_price_per_person": 60,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "单人电影票", "group_buy_original_price": 80, "group_buy_current_price": 62,
+    "business_hours": "10:00-23:00", "trend_tag": "热门", "recommend_count": 780
+  },
+  {
+    "id": "poi_076", "name": "兰心大戏院", "category": "娱乐", "sub_category": "剧院",
+    "address": "茂名北路57号", "city": "上海", "area": "静安",
+    "lat": 31.2265, "lng": 121.4618,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 4.2,
+    "review_count": 3400, "half_year_sales": 2900, "avg_price_per_person": 260,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "演出日开放", "trend_tag": "热门", "recommend_count": 320
+  },
+  {
+    "id": "poi_077", "name": "奈雪の茶（外滩核心店）", "category": "餐饮", "sub_category": "奶茶",
+    "address": "南京东路100号", "city": "上海", "area": "外滩",
+    "lat": 31.2368, "lng": 121.4798,
+    "rating": 4.3, "taste_rating": 4.4, "decor_rating": 4.5, "service_rating": 4.2, "hygiene_rating": 4.3, "value_rating": 4.0,
+    "review_count": 6800, "half_year_sales": 12000, "avg_price_per_person": 38,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-22:30", "trend_tag": "热门", "recommend_count": 720
+  },
+  {
+    "id": "poi_078", "name": "喜茶（新天地店）", "category": "餐饮", "sub_category": "奶茶",
+    "address": "太仓路181号新天地北里", "city": "上海", "area": "新天地",
+    "lat": 31.2192, "lng": 121.4728,
+    "rating": 4.4, "taste_rating": 4.5, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.1,
+    "review_count": 7200, "half_year_sales": 14500, "avg_price_per_person": 35,
+    "queue_risk": "高", "queue_minutes_peak": 30, "queue_minutes_offpeak": 10,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-22:00", "trend_tag": "火爆", "recommend_count": 1100
+  },
+  {
+    "id": "poi_079", "name": "霸王茶姬（南京路旗舰店）", "category": "餐饮", "sub_category": "奶茶",
+    "address": "南京东路318号", "city": "上海", "area": "外滩",
+    "lat": 31.2362, "lng": 121.4760,
+    "rating": 4.4, "taste_rating": 4.5, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.3,
+    "review_count": 5400, "half_year_sales": 9800, "avg_price_per_person": 28,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-22:00", "trend_tag": "火爆", "recommend_count": 890
+  },
+  {
+    "id": "poi_080", "name": "西贝莜面村（南京路店）", "category": "餐饮", "sub_category": "西北菜",
+    "address": "南京东路819号", "city": "上海", "area": "外滩",
+    "lat": 31.2358, "lng": 121.4780,
+    "rating": 4.4, "taste_rating": 4.5, "decor_rating": 4.4, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 9200, "half_year_sales": 13500, "avg_price_per_person": 108,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "双人套餐", "group_buy_original_price": 248, "group_buy_current_price": 198,
+    "business_hours": "10:30-21:30", "trend_tag": "热门", "recommend_count": 1100
+  },
+  {
+    "id": "poi_081", "name": "锦江饭店（南楼餐厅）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "茂名南路59号", "city": "上海", "area": "淮海路",
+    "lat": 31.2228, "lng": 121.4620,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.8, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 4.0,
+    "review_count": 3800, "half_year_sales": 4500, "avg_price_per_person": 238,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:30-22:00", "trend_tag": "高端", "recommend_count": 380
+  },
+  {
+    "id": "poi_082", "name": "1221餐厅", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "延安西路1221号", "city": "上海", "area": "长宁",
+    "lat": 31.2165, "lng": 121.4362,
+    "rating": 4.7, "taste_rating": 4.8, "decor_rating": 4.5, "service_rating": 4.6, "hygiene_rating": 4.7, "value_rating": 4.3,
+    "review_count": 4600, "half_year_sales": 5800, "avg_price_per_person": 198,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "招牌双人套餐", "group_buy_original_price": 488, "group_buy_current_price": 358,
+    "business_hours": "11:00-22:00", "trend_tag": "宝藏", "recommend_count": 490
+  },
+  {
+    "id": "poi_083", "name": "哈比比烤肉（新天地店）", "category": "餐饮", "sub_category": "中东烤肉",
+    "address": "自忠路328号", "city": "上海", "area": "新天地",
+    "lat": 31.2178, "lng": 121.4708,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.6, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 2800, "half_year_sales": 3600, "avg_price_per_person": 148,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:30-23:00", "trend_tag": "宝藏", "recommend_count": 290
+  },
+  {
+    "id": "poi_084", "name": "上海老饭店（豫园店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "福佑路242号", "city": "上海", "area": "外滩",
+    "lat": 31.2265, "lng": 121.4905,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.4, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.3,
+    "review_count": 9800, "half_year_sales": 13500, "avg_price_per_person": 138,
+    "queue_risk": "中", "queue_minutes_peak": 25, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "双人经典套餐", "group_buy_original_price": 318, "group_buy_current_price": 238,
+    "business_hours": "11:00-21:30", "trend_tag": "老字号", "recommend_count": 1050
+  },
+  {
+    "id": "poi_085", "name": "上海豫园商城（美食街）", "category": "餐饮", "sub_category": "小吃街",
+    "address": "豫园路168号", "city": "上海", "area": "外滩",
+    "lat": 31.2268, "lng": 121.4898,
+    "rating": 4.2, "taste_rating": 4.3, "decor_rating": 4.4, "service_rating": 4.0, "hygiene_rating": 4.1, "value_rating": 4.5,
+    "review_count": 35000, "half_year_sales": 52000, "avg_price_per_person": 60,
+    "queue_risk": "高", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-22:00", "trend_tag": "火爆", "recommend_count": 2800
+  },
+  {
+    "id": "poi_086", "name": "麦隆咖啡（静安嘉里店）", "category": "餐饮", "sub_category": "咖啡",
+    "address": "南京西路1515号嘉里中心", "city": "上海", "area": "静安",
+    "lat": 31.2270, "lng": 121.4488,
+    "rating": 4.6, "taste_rating": 4.6, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.2,
+    "review_count": 3200, "half_year_sales": 5100, "avg_price_per_person": 58,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "08:00-22:00", "trend_tag": "热门", "recommend_count": 380
+  },
+  {
+    "id": "poi_087", "name": "FOUND 158（外滩）", "category": "娱乐", "sub_category": "餐吧",
+    "address": "南苏州路158号", "city": "上海", "area": "外滩",
+    "lat": 31.2422, "lng": 121.4882,
+    "rating": 4.4, "taste_rating": 4.3, "decor_rating": 4.6, "service_rating": 4.3, "hygiene_rating": 4.4, "value_rating": 4.0,
+    "review_count": 4800, "half_year_sales": 6200, "avg_price_per_person": 128,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:00-次日02:00", "trend_tag": "热门", "recommend_count": 480
+  },
+  {
+    "id": "poi_088", "name": "五番街（虹口足球场）", "category": "娱乐", "sub_category": "综合娱乐",
+    "address": "东江湾路55号", "city": "上海", "area": "虹口",
+    "lat": 31.2758, "lng": 121.4870,
+    "rating": 4.1, "taste_rating": 0, "decor_rating": 4.2, "service_rating": 4.0, "hygiene_rating": 4.1, "value_rating": 4.2,
+    "review_count": 9800, "half_year_sales": 14000, "avg_price_per_person": 80,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "热门", "recommend_count": 680
+  },
+  {
+    "id": "poi_089", "name": "蔡澜港式点心（iapm店）", "category": "餐饮", "sub_category": "港式点心",
+    "address": "淮海中路999号iapm商场B1", "city": "上海", "area": "淮海路",
+    "lat": 31.2178, "lng": 121.4598,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.4, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 6200, "half_year_sales": 9100, "avg_price_per_person": 98,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "双人港式早茶", "group_buy_original_price": 238, "group_buy_current_price": 178,
+    "business_hours": "10:00-22:00", "trend_tag": "热门", "recommend_count": 680
+  },
+  {
+    "id": "poi_090", "name": "吴越人家（南京西路店）", "category": "餐饮", "sub_category": "江浙菜",
+    "address": "南京西路888号", "city": "上海", "area": "静安",
+    "lat": 31.2255, "lng": 121.4550,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.5, "service_rating": 4.4, "hygiene_rating": 4.6, "value_rating": 4.3,
+    "review_count": 5800, "half_year_sales": 7900, "avg_price_per_person": 128,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人精选套餐", "group_buy_original_price": 298, "group_buy_current_price": 228,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 620
+  },
+  {
+    "id": "poi_091", "name": "武康大楼", "category": "文化", "sub_category": "历史建筑",
+    "address": "淮海中路1836号", "city": "上海", "area": "徐汇",
+    "lat": 31.2068, "lng": 121.4468,
+    "rating": 4.7, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.3, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 22000, "half_year_sales": 32000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "全天（外观）", "trend_tag": "必打卡", "recommend_count": 2800
+  },
+  {
+    "id": "poi_092", "name": "静安寺", "category": "文化", "sub_category": "寺庙",
+    "address": "南京西路1686号", "city": "上海", "area": "静安",
+    "lat": 31.2268, "lng": 121.4450,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.3, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 18000, "half_year_sales": 24000, "avg_price_per_person": 50,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "07:30-17:00", "trend_tag": "热门", "recommend_count": 1800
+  },
+  {
+    "id": "poi_093", "name": "上海龙华寺", "category": "文化", "sub_category": "寺庙",
+    "address": "龙华路2853号", "city": "上海", "area": "徐汇",
+    "lat": 31.1808, "lng": 121.4502,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.5,
+    "review_count": 15000, "half_year_sales": 21000, "avg_price_per_person": 10,
+    "queue_risk": "中", "queue_minutes_peak": 15, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "07:00-17:00", "trend_tag": "热门", "recommend_count": 1500
+  },
+  {
+    "id": "poi_094", "name": "上海玉佛禅寺", "category": "文化", "sub_category": "寺庙",
+    "address": "安远路170号", "city": "上海", "area": "普陀",
+    "lat": 31.2500, "lng": 121.4390,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.3,
+    "review_count": 12000, "half_year_sales": 16000, "avg_price_per_person": 20,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "08:00-17:00", "trend_tag": "热门", "recommend_count": 1200
+  },
+  {
+    "id": "poi_095", "name": "上海鲁迅纪念馆", "category": "文化", "sub_category": "纪念馆",
+    "address": "甜爱路200号", "city": "上海", "area": "虹口",
+    "lat": 31.2748, "lng": 121.4948,
+    "rating": 4.6, "taste_rating": 0, "decor_rating": 4.6, "service_rating": 4.5, "hygiene_rating": 4.6, "value_rating": 5.0,
+    "review_count": 6800, "half_year_sales": 9200, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 5, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-16:00（周一闭馆）", "trend_tag": "宝藏", "recommend_count": 590
+  },
+  {
+    "id": "poi_096", "name": "上海图书馆（东馆）", "category": "文化", "sub_category": "图书馆",
+    "address": "合欢路300号", "city": "上海", "area": "浦东",
+    "lat": 31.2200, "lng": 121.5552,
+    "rating": 4.8, "taste_rating": 0, "decor_rating": 4.9, "service_rating": 4.7, "hygiene_rating": 4.9, "value_rating": 5.0,
+    "review_count": 14000, "half_year_sales": 20000, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "09:00-20:00", "trend_tag": "火爆", "recommend_count": 1800
+  },
+  {
+    "id": "poi_097", "name": "百联ZX创趣场", "category": "娱乐", "sub_category": "二次元商场",
+    "address": "四川北路988号", "city": "上海", "area": "虹口",
+    "lat": 31.2618, "lng": 121.4882,
+    "rating": 4.5, "taste_rating": 0, "decor_rating": 4.7, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.2,
+    "review_count": 8900, "half_year_sales": 13500, "avg_price_per_person": 0,
+    "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "10:00-22:00", "trend_tag": "火爆", "recommend_count": 1100
+  },
+  {
+    "id": "poi_098", "name": "仙霞路日料一条街", "category": "餐饮", "sub_category": "日料",
+    "address": "仙霞路（全段）", "city": "上海", "area": "长宁",
+    "lat": 31.2048, "lng": 121.4035,
+    "rating": 4.5, "taste_rating": 4.6, "decor_rating": 4.4, "service_rating": 4.4, "hygiene_rating": 4.5, "value_rating": 4.3,
+    "review_count": 12000, "half_year_sales": 18000, "avg_price_per_person": 198,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": false, "group_buy_title": "", "group_buy_original_price": 0, "group_buy_current_price": 0,
+    "business_hours": "11:30-22:00", "trend_tag": "热门", "recommend_count": 1100
+  },
+  {
+    "id": "poi_099", "name": "桃花源记（陆家嘴店）", "category": "餐饮", "sub_category": "江浙菜",
+    "address": "世纪大道100号上海环球金融中心B1", "city": "上海", "area": "陆家嘴",
+    "lat": 31.2362, "lng": 121.5045,
+    "rating": 4.6, "taste_rating": 4.7, "decor_rating": 4.7, "service_rating": 4.5, "hygiene_rating": 4.7, "value_rating": 4.1,
+    "review_count": 4800, "half_year_sales": 6200, "avg_price_per_person": 178,
+    "queue_risk": "中", "queue_minutes_peak": 20, "queue_minutes_offpeak": 5,
+    "has_group_buy": true, "group_buy_title": "双人精选套餐", "group_buy_original_price": 398, "group_buy_current_price": 308,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 510
+  },
+  {
+    "id": "poi_100", "name": "丰收日（外滩店）", "category": "餐饮", "sub_category": "本帮菜",
+    "address": "中山东二路22号", "city": "上海", "area": "外滩",
+    "lat": 31.2338, "lng": 121.4932,
+    "rating": 4.7, "taste_rating": 4.8, "decor_rating": 4.7, "service_rating": 4.6, "hygiene_rating": 4.8, "value_rating": 4.2,
+    "review_count": 5600, "half_year_sales": 7200, "avg_price_per_person": 188,
+    "queue_risk": "低", "queue_minutes_peak": 10, "queue_minutes_offpeak": 0,
+    "has_group_buy": true, "group_buy_title": "双人本帮套餐", "group_buy_original_price": 458, "group_buy_current_price": 348,
+    "business_hours": "11:00-22:00", "trend_tag": "热门", "recommend_count": 620
+  }
+]

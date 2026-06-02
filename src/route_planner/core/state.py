@@ -8,5 +8,6 @@ class RouteState(TypedDict):
     route: List[Dict[str, Any]]
     locked_nodes: List[int]
     map_url: str
+    summary: str
     conversation_history: List[Dict[str, str]]
     stream_updates: List[str]
