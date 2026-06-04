@@ -1,0 +1,6 @@
+langgraph>=0.2
+openai>=1.0
+anthropic>=0.50
+fastapi>=0.111
+uvicorn[standard]>=0.29
+python-dotenv>=1.0
