@@ -249,12 +249,20 @@ def _parse_categories(raw) -> list:
         return []
 
 def _sub_category(cats: list) -> str:
+    """Map all English categories to Chinese and join with 、.
+    This allows LIKE '%麵食%' to match a POI tagged both 潮州菜 and 麵食.
+    """
+    seen, result = set(), []
     for c in cats:
-        for eng, zh in _CAT_MAP.items():
+        zh = None
+        for eng, mapped in _CAT_MAP.items():
             if eng.lower() in c.lower():
-                return zh
-    # Fallback: return first category as-is
-    return cats[0] if cats else "餐廳"
+                zh = mapped
+                break
+        if zh and zh not in seen:
+            seen.add(zh)
+            result.append(zh)
+    return "、".join(result) if result else (cats[0] if cats else "餐廳")
 
 # ---------------------------------------------------------------------------
 # Price defaults by sub_category
