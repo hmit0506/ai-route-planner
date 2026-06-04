@@ -2,15 +2,15 @@
 
 ---
 
-## 一、整体设计理念
+## 一、设计理念
 
-### 核心问题
+路线规划是一个**多约束组合优化问题**：在 N 个候选 POI 中，找出满足预算、时间、偏好、地理距离、排队风险等约束的最优子集，并按合理顺序串联。
 
-路线规划本质上是一个**多约束组合优化问题**：在 N 个候选 POI 中，找出满足预算、时间、偏好、地理距离、排队风险等约束的最优子集，并按合理顺序串联。
+**核心设计决策：LLM 做理解与决策，纯代码做数据处理与约束保障。**
 
-纯规则/搜索算法能处理硬约束（预算上限、营业时间），但无法处理软约束（"本帮菜口味"、"文艺气息"、"避开人太多的地方"）。纯 LLM 能理解软约束，但上下文长度有限、延迟高、成本贵，不适合处理大量 POI 数据的枚举。
-
-**设计决策：混合架构——LLM 做理解和决策，纯代码做数据处理。**
+- LLM 擅长软约束（"文艺气息"、"不想排队"、"带小孩"）和自然语言理解
+- 纯代码擅长硬约束（预算上限、营业时间、地理距离）和数据格式化
+- LLM 输出不可靠时由代码兜底自动修正（IntentAgent 自校验）
 
 ---
 
@@ -23,39 +23,38 @@
         │
         ▼
   ┌─────────────┐
-  │ IntentAgent │  LLM调用①：自然语言 → 结构化意图 JSON（含 duration_hours）
+  │ IntentNode  │  LLM①：CoT推理 + 结构化意图 JSON，代码层自动校验
   └──────┬──────┘
-         │ intent: {city, area, budget, duration_hours, food_pref, ...}
+         │ intent: {city, area, duration_hours, budget, food_pref, ...}
          ▼
   ┌──────────────────┐
-  │ POISearchAgent   │  纯代码：从 SQLite (poi.db) 按条件召回候选
+  │ POISearchNode    │  纯代码：SQLite 查询，按城市/商圈/类别召回 Top-10 候选
   └────────┬─────────┘
-           │ candidates: {"餐饮": [...10个], "文化": [...8个]}
+           │ candidates: {"餐饮": [...], "文化": [...]}
            ▼
   ┌──────────────────┐
-  │ GeoClusterNode   │  纯代码：地理聚合过滤离群POI + 根据时间算 max_pois
+  │ GeoClusterNode   │  纯代码：地理聚合过滤 + 时间预算→max_pois
   └────────┬─────────┘
            │ candidates（已过滤）+ intent.max_pois
            ▼
   ┌─────────────┐
-  │  RouteAgent │  LLM调用②：从候选中选出最优路线（max_pois 为参考，±1站弹性）
+  │  RouteNode  │  LLM②：多维度决策，选出最优路线（max_pois ±1 弹性）
   └──────┬──────┘
          │ route: [{poi_id, order, stay_minutes}, ...]
          ▼
   ┌─────────────┐
-  │ EnrichAgent │  纯代码：补全团购/排队/趋势字段
+  │ EnrichNode  │  纯代码：poi_id → 完整字段，计算展示用派生字段
   └──────┬──────┘
          │ route: [{name, rating, queue_risk_tip, group_buy, ...}, ...]
          ▼
   ┌─────────────┐
-  │ OutputAgent │  纯代码：步行路径、导航链接、地图 URL、摘要
+  │ OutputNode  │  纯代码：步行路径、导航链接、静态地图 URL、摘要
   └──────┬──────┘
-         │
          ▼
   最终路线 JSON（含 transport_polyline）+ 高德静态地图 URL
 ```
 
-**LLM 仅调用 2 次**，其余节点为纯 Python，整体响应 < 10 秒（配合 SSE 流式推送体感更快）。
+**首次生成仅 2 次 LLM 调用**，其余均为纯代码，配合 SSE 流式推送保证 < 10 秒响应。
 
 ### 局部替换流水线（多轮对话）
 
@@ -64,7 +63,7 @@
         │
         ▼
   ┌────────────┐
-  │ RefineNode │  LLM调用①：解析替换意图，确定要替换的节点和新约束
+  │ RefineNode │  LLM①：解析替换意图，确定节点和新约束
   └──────┬─────┘
          │ intent._refine: {replace_order, category, new_constraints}
          │ locked_nodes: [其余节点索引]
@@ -74,209 +73,199 @@
   └────────┬─────────┘
            ▼
   ┌──────────────────────┐
-  │ RefineSelectNode     │  纯代码：按新约束选最优替换 POI，合并回原路线
+  │ RefineSelectNode     │  纯代码：按约束筛选 + 合并回原路线
   └──────────┬───────────┘
              ▼
   EnrichNode → OutputNode
 ```
 
-**局部替换仅 1 次 LLM 调用**，其余全为纯代码。
+**局部替换仅 1 次 LLM 调用**。
 
 ---
 
-## 三、LangGraph StateGraph 机制
-
-### 为什么用 LangGraph
-
-LangGraph 将 Agent 流水线建模为**有向图（DAG）**，每个节点是一个状态变换函数：
-
-```
-state_new = node(state_old)
-```
-
-相比直接写串行函数调用，LangGraph 的优势：
-- **状态统一管理**：所有节点共享同一个 `RouteState`，无需手动传参
-- **条件路由**：支持"用户满意则结束，不满意则进 RefineAgent"等分支逻辑
-- **可观测性**：每个节点的输入输出自动可追踪，便于调试
-- **局部重跑**：多轮对话时只需从 `RefineNode` 开始，不重跑整条流水线
-
-### RouteState 状态流转
+## 三、共享状态（RouteState）
 
 ```python
 class RouteState(TypedDict):
-    user_input: str               # 不变，原始输入
-    intent: dict                  # IntentAgent 写入；_refine 子键由 RefineNode 写入
-    candidates: dict              # POISearchAgent 写入
-    route: list                   # RouteAgent 写入初版，Enrich/Output 逐步丰富
-    locked_nodes: list            # 多轮对话用：用户满意不替换的节点索引
-    map_url: str                  # OutputAgent 写入（高德静态地图 URL）
-    summary: str                  # OutputAgent 写入
-    conversation_history: list    # 跨轮保留
-    stream_updates: list          # 每个节点追加一条，用于 SSE 推送
+    user_input: str               # 原始用户输入，全程不变
+    intent: dict                  # IntentNode 写入；_refine 子键由 RefineNode 写入
+    candidates: dict              # POISearchNode 写入，GeoClusterNode 过滤后更新
+    route: list                   # RouteNode 写入骨架，Enrich/Output 逐步丰富
+    locked_nodes: list            # 多轮对话中用户满意不替换的节点索引（0-based）
+    map_url: str                  # OutputNode 写入
+    summary: str                  # OutputNode 写入
+    conversation_history: list    # 跨轮保留，传入 IntentNode
+    stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
 ```
 
-每个节点只负责写自己关心的字段，其余字段透传（`{**state, "xxx": new_value}`）。
+每个节点只写自己关心的字段，其余透传（`{**state, "key": new_value}`）。
 
 ---
 
-## 四、各节点设计详解
+## 四、各节点详解
 
-### 4.1 IntentAgent
+### 4.1 IntentNode（LLM）
 
-**职责**：将自由格式自然语言映射为固定 Schema 的结构化 JSON。
+**职责**：将自由格式自然语言映射为固定 Schema 的结构化 JSON，并做自我校验。
 
-**为什么用 LLM**：用户输入极度多样——"两个人，想吃辣的，不超过200"、"带娃逛上海，全家出行"——规则解析无法覆盖长尾表达。
+**两层保障**：
 
-**Prompt 策略**：
-- System prompt 给出完整 JSON Schema，包含字段类型和默认值规则
-- 要求 LLM 直接输出 JSON，不输出任何解释文字
-- 对未提及字段给出明确 fallback（未指定人数默认2人，未指定时间默认14:00-21:00）
+| 层次 | 方式 | 示例 |
+|---|---|---|
+| LLM 层（CoT） | 先输出推理过程，再输出 JSON | "用户提到一整天，因此 duration=12，需含文化类" |
+| 代码层（自动修正） | 解析后校验并修复常见错误 | duration_hours 为空→从 time_range 计算；budget_per_person 对不上→自动修正 |
+
+**代码层校验规则**：
+- `duration_hours` 缺失 → 从 `time_range` 推算，兜底默认 4
+- `budget_per_person` 与 `budget_total / party_size` 偏差 > 5 元 → 修正
+- `must_include_categories` 为空 → 补 "餐饮"
+- `duration_hours >= 5` 且只有 "餐饮" → 自动追加 "文化"
 
 **输出示例**：
 ```json
 {
-  "city": "上海", "area": "外滩",
+  "city": "上海", "area": "南京西路",
+  "time_range": {"start": "09:00", "end": "21:00"},
+  "duration_hours": 12,
   "budget_total": 300, "budget_per_person": 150, "party_size": 2,
   "food_pref": ["本帮菜"],
-  "must_include_categories": ["餐饮", "文化"],
-  "time_range": {"start": "14:00", "end": "21:00"}
+  "must_include_categories": ["餐饮", "文化"]
 }
 ```
 
 ---
 
-### 4.2 POISearchAgent
+### 4.2 POISearchNode（纯代码）
 
-**职责**：纯代码，从 SQLite 数据库（`route_planner/data/poi.db`）召回每个类别的 Top-10 候选。
+**职责**：从 SQLite 数据库（`poi.db`，由 `poi.csv` 启动时生成）按条件召回候选。
 
-**数据源**：`poi.csv`（提交到 git，GitHub 可直接查看）→ 启动时由 `setup.sh` 迁移为 `poi.db`（不提交 git）。成员 B 维护数据只需编辑 CSV，重新运行迁移脚本即可。
+**数据源**：`poi.csv`（提交到 git，人工维护）→ `setup.sh` 迁移为 `poi.db`（不提交 git）。
 
-**召回策略（按优先级）**：
-
-1. **地理过滤**：city 精确匹配 + area 模糊子串匹配
-2. **Fallback**：若命中 < 3 个，退化为仅过滤 city，扩大范围
-3. **偏好提升**：餐饮类中，`food_pref` 匹配 `sub_category` 的 POI 排在前面
-4. **预算软过滤**：`avg_price_per_person <= budget_per_person × 1.2`
-5. **按评分降序**，每类取 Top-10 传给 RouteAgent
+**召回策略**：
+1. `city LIKE ?` + `area LIKE ?` 模糊匹配
+2. `avg_price_per_person <= budget_per_person × 1.2`（20% 弹性，避免过度截断）
+3. 餐饮类：`food_pref` 匹配 `sub_category` 的 POI 排前
+4. 按 `rating DESC`，每类取 Top-10
+5. Fallback：若命中 < 3 个，退化为仅 city 过滤
 
 ---
 
-### 4.3 RouteAgent
+### 4.3 GeoClusterNode（纯代码）
 
-**职责**：LLM 在候选集中做多约束最优选择，返回 POI ID 列表 + 停留时间。
+**职责**：地理聚合过滤 + 根据时间预算计算推荐站点数。
 
-**为什么用 LLM**：需要综合判断地理相邻性、软约束匹配、时间窗口合理性、排队避峰。
+**逻辑**：
+1. 合并所有类别候选，计算地理质心（lat/lng 均值）
+2. 过滤掉距质心 > 3km 的 POI（防止选出跨区域组合）；若某类剩余 < 3 个则回退保留原始候选
+3. 计算 `max_pois = max(3, min(8, floor(duration_hours × 60 / 65)))`
+4. 将 `max_pois` 写入 intent，传递给 RouteNode
 
-**传入候选字段**（compact 版，省略冗余字段）：
+**同时计算类别配比约束**：
+
+| 行程时长 | 餐饮上限（max_dining） | 文化/娱乐下限（min_cultural） |
+|---|---|---|
+| < 5 小时 | max_pois - 1 | 1 |
+| 5–7 小时 | 2 | max_pois - 2 |
+| ≥ 8 小时 | 2（午饭+晚饭） | max_pois - 3 |
+
+这两个参数传给 RouteNode，避免全天行程只选餐厅的问题。
+
+**为什么需要**：RouteNode 在选站时不知道真实交通时间，依赖 LLM 对坐标的直觉估算。GeoClusterNode 提前过滤离群 POI、计算合理配比，从根本上约束 LLM 的选择空间。
+
+---
+
+### 4.4 RouteNode（LLM）
+
+**职责**：在地理过滤后的候选集中，综合多维度信息选出最优路线骨架。
+
+**传入候选字段（compact 版）**：
 
 | 字段 | 决策用途 |
 |---|---|
-| `avg_price_per_person` | 预算核算基准 |
-| `group_buy_price` | 有团购时的实付价（比均价更准确） |
-| `queue_risk` + `queue_minutes_peak` | 排队风险 + 具体等位分钟数，用于安排到店时段 |
+| `rating` + `review_count` | 综合质量，review_count < 100 时降低评分可信度 |
+| `value_rating` | 性价比；预算有限时优先选高性价比 |
+| `avg_price_per_person` / `group_buy_price` | 实际花费；有团购时用团购价计算预算 |
+| `queue_minutes_peak` / `queue_minutes_offpeak` | 峰值与非峰值等位时间，用于安排时段 |
+| `taste_rating`（仅餐饮） | 食客最核心关注点 |
 | `half_year_sales` | 热门程度，同等条件下优先高销量 |
+| `business_hours` | 营业时间硬约束 |
 | `lat/lng` | 地理相邻性判断 |
-| `business_hours` | 营业时间约束 |
 
-**站点数量策略**：以 GeoClusterNode 计算的 `max_pois` 为参考，LLM 可根据行程丰富度 ±1 站灵活调整，最少 3 站（赛题硬性要求）。
+**站点数量**：以 `max_pois` 为参考，可 ±1 站弹性调整，最少 3 站（赛题硬性要求）。
 
-**输出示例**：
+**输出**（最精简骨架，节省 token）：
 ```json
 [
-  {"poi_id": "poi_005", "order": 1, "stay_minutes": 30},
-  {"poi_id": "poi_013", "order": 2, "stay_minutes": 90},
+  {"poi_id": "poi_013", "order": 1, "stay_minutes": 90},
+  {"poi_id": "poi_028", "order": 2, "stay_minutes": 45},
   {"poi_id": "poi_084", "order": 3, "stay_minutes": 90}
 ]
 ```
 
 ---
 
-### 4.4 EnrichAgent
+### 4.5 EnrichNode（纯代码）
 
-**职责**：纯代码，将 RouteAgent 输出的 POI ID 映射回完整 POI 数据，并计算展示字段。
+**职责**：将 RouteNode 输出的 POI ID 骨架映射回完整字段，并计算三个展示用派生字段。
 
-**计算逻辑**：
-
-| 字段 | 计算方式 |
+| 派生字段 | 计算逻辑 |
 |---|---|
-| `queue_risk_tip` | 高风险 → "晚高峰等位约N分钟，建议提前到店"；中 → "高峰期约N分钟"；低 → "基本无需等位" |
+| `queue_risk_tip` | 高→"晚高峰等位约N分钟，建议提前到店"；中→"高峰期约N分钟"；低→"基本无需等位" |
 | `group_buy.discount` | `current_price / original_price × 10`，格式"6.8折" |
-| `trend_tag` | 销量 ≥ 1万 → "火爆（已售1.2万单）"；否则拼接实际数字 |
+| `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；否则拼接实际数字 |
+
+多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
 ---
 
-### 4.5 OutputAgent
+### 4.6 OutputNode（纯代码）
 
-**职责**：纯代码，补全最终展示字段，生成地图相关数据和文字摘要。
+**职责**：补全最终展示字段，生成地图相关数据和摘要。
 
-**新增字段（每个 POI）**：
+**每个 POI 新增字段**：
 
 | 字段 | 来源 |
 |---|---|
-| `transport_to_next` | Haversine 距离估算（≤1.5km步行，≤5km骑行，>5km打车） |
-| `transport_polyline` | 高德步行路径规划 API，格式 `"lng,lat;lng,lat;..."`，供前端 JS 地图绘制蓝线；最后一个 POI 为 null |
-| `navigation_url` | 高德导航 URI Scheme，手机点击直接跳转导航 App |
+| `transport_to_next` | Haversine 距离估算：≤1.5km→步行，≤5km→骑行，>5km→打车 |
+| `transport_polyline` | 高德步行路径 API（`"lng,lat;lng,lat;..."`），供前端 JS 地图绘制蓝线；最后一个 POI 为 null |
+| `navigation_url` | 高德 URI Scheme，手机点击跳转导航 App |
 
-**地图 URL 构造**：调用高德静态地图 API，同时包含：
-- `markers=`：每个 POI 的标记点（A/B/C...）
-- `paths=`：步行路径蓝线（weight:4;color:0x0065FF）
-- 若步行 API 超时/失败，优雅降级为仅标记点
+**静态地图 URL 构造**：高德 REST API，含标记点（A/B/C...）+ 步行路径蓝线（每段限 40 个坐标点，防 URL 超长）；步行 API 失败时优雅降级为仅标记点。
 
 ---
 
-### 4.6 RefineNode + RefineSelectNode
-
-**职责**：处理多轮对话中的局部替换请求（"换一家"、"换掉第二个"）。
-
-### 4.3.5 GeoClusterNode（纯代码，介于 POISearch 和 Route 之间）
-
-**职责**：地理聚合 + 时间预算约束，给 RouteAgent 提供更干净的候选集。
-
-**逻辑**：
-1. 合并所有类别候选，计算地理中心（所有 POI 经纬度均值）
-2. 过滤掉距中心 > 3km 的离群 POI（防止选出跨区域组合）；若某类剩余 < 3 个则回退保留原始候选
-3. 根据 `duration_hours` 计算 `max_pois`：`max(3, min(6, floor(duration_hours × 60 / 65)))`
-4. 将 `max_pois` 写入 intent，RouteAgent 以此为参考（可 ±1 站弹性调整）
-
-**无 LLM 调用**，耗时 < 1ms。
-
----
-
-### 4.6 RefineNode + RefineSelectNode
+### 4.7 RefineNode + RefineSelectNode（多轮对话）
 
 **RefineNode（LLM）**：
-- 输入：用户话语 + 当前路线 JSON
-- 解析出：要替换的节点编号、替换类别、新约束（如 `queue_risk != "高"`）
+- 输入：用户话语 + 当前路线摘要（name/category/rating/queue_risk/price）
+- 解析：要替换的节点编号、替换类别、新约束（queue_risk 上限、max_price、avoid_sub_category）
 - 写入 `intent["_refine"]`，设置 `locked_nodes`
 
 **RefineSelectNode（纯代码）**：
-- 从 POISearchNode 召回的候选中，按新约束过滤
-- 选评分最高的替换 POI
-- 将替换结果合并回原路线，locked_nodes 对应位置保持不变
+- 从候选中过滤掉已在路线中的 POI 和不满足 new_constraints 的 POI
+- 选评分最高者插入原路线对应位置
+- 若无符合条件的替换，保留原 POI 并提示
 
 ---
 
-## 五、LLM 调用层设计
+## 五、LLM 调用层
 
-### DeepSeek + Claude Fallback
+### DeepSeek 主力 + Claude Fallback
 
 ```
 call_llm(messages)
-  │
   ├─ 尝试 DeepSeek（最多3次，指数退避：1s → 2s → 4s）
   │    ├─ 成功 → 返回结果
-  │    └─ RateLimitError / APIError → 下一次重试
-  │
+  │    └─ RateLimitError / APIError → 重试
   └─ 3次全失败 → 自动切换 Claude Sonnet 4.6
 ```
 
-**DeepSeek**：成本低（约为 GPT-4 的 1/20）、中文理解强、OpenAI 兼容格式。
-
-**Claude Fallback**：稳定性高、JSON 格式遵循性好，作为最后保障。
+**DeepSeek**：成本约为 GPT-4 的 1/20，中文理解强，OpenAI 兼容格式。  
+**Claude Fallback**：稳定性高，JSON 格式遵循性好。
 
 ### JSON 解析容错
 
-LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json` 函数用正则剥离 fence 后再解析，避免整条流水线崩溃。
+LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json` 用正则剥离 fence 后再解析，避免整条流水线崩溃。CoT 模式下额外用正则定位 JSON 块，推理文字单独提取。
 
 ---
 
@@ -284,64 +273,64 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 | 手段 | 效果 |
 |---|---|
-| LLM 调用仅 2 次 | 减少最大延迟来源 |
-| POI 搜索纯代码（SQLite） | < 5ms |
+| LLM 仅调用 2 次 | 减少最大延迟来源 |
+| GeoClusterNode 纯代码 | < 1ms |
+| POISearchNode SQLite 查询 | < 5ms |
+| EnrichNode / OutputNode 纯代码 | < 50ms（不含高德步行 API） |
 | SSE 流式推送 | 每完成一个节点立即推进度，用户体感"秒开" |
-| 路线缓存（已实现） | 相同城市+商圈+预算区间命中缓存 < 1 秒 |
+| 内存缓存 | 相同请求命中缓存直接返回，< 1 秒 |
+
+高德步行路径 API（OutputNode）每段超时 3 秒，失败时自动降级，不阻塞主流程。
 
 ---
 
 ## 七、地图方案
 
-### 静态地图（后端生成）
+### 静态地图（后端生成，当前使用）
 
-调用高德静态地图 REST API，返回 PNG 图片 URL：
-- 标记点：每个 POI 用字母（A/B/C）标注
-- 步行路径：蓝色折线（真实路径，非直线）
+调用高德 Web 服务 REST API，返回 PNG 图片 URL：
+- 标记点：A/B/C... 字母标注
+- 步行路径：蓝色折线（真实路径，非直线），每段限 40 坐标点防 URL 过长
 - 使用 **Web 服务 Key**（服务器端 HTTP 调用）
 
-### 动态地图（前端渲染）
+### 动态地图（前端渲染，接入方案已提供）
 
-前端使用高德 JS SDK 2.0，基于后端返回的坐标数据渲染交互式地图：
+前端使用高德 JS SDK 2.0，基于后端返回的 `lat/lng` 和 `transport_polyline` 渲染：
 - 可缩放/平移
-- 点击 POI 弹窗（评分、团购、导航按钮）
-- 步行路径蓝线（使用 `transport_polyline` 字段）
-- 使用 **Web 端 JS API Key**（浏览器端 SDK 加载，与 Web 服务 Key 不同，需单独申请）
+- 点击标记弹出 POI 详情（评分、排队、团购、导航按钮）
+- 蓝色步行路径折线
+- 使用 **Web 端 JS Key**（浏览器加载 SDK，与 Web 服务 Key 不同，需单独申请并绑定域名）
 
 详见 [前端接入指南](./frontend_guide_for_C.md)。
 
 ---
 
-## 八、数据层设计
+## 八、数据层
 
 ### POI 数据管理
 
-| 文件 | 用途 | 是否提交 git |
+| 文件 | 用途 | 提交 git |
 |---|---|---|
-| `route_planner/data/poi.csv` | 数据源，人工维护，GitHub 可直接查看 | ✅ 是 |
-| `route_planner/data/poi.db` | SQLite 运行时数据库，由 `setup.sh` 自动从 CSV 生成 | ❌ 否 |
+| `route_planner/data/poi.csv` | 数据源，人工维护，GitHub 直接查看表格 | ✅ |
+| `route_planner/data/poi.db` | SQLite 运行时数据库，`setup.sh` 从 CSV 自动生成 | ❌ |
 
-**维护流程**：编辑 `poi.csv` → 提交 git → 队友 `git pull` 后重新运行 `bash setup.sh` 即可。
+**维护流程**：编辑 `poi.csv` → `git push` → Railway 自动重新部署，`poi.db` 自动重建。
 
-### POI 字段说明（25+ 字段）
-
-覆盖上海主要商圈（外滩、南京路、新天地、淮海路、静安、陆家嘴、徐汇等），五大类别：
+### POI 字段覆盖（100条，上海主要商圈）
 
 | 类别 | 数量 | 子类举例 |
 |---|---|---|
 | 餐饮 | ~50 | 本帮菜、江浙菜、火锅、粤菜、日料、咖啡、下午茶 |
-| 文化 | ~30 | 博物馆、历史建筑、创意街区、寺庙、书店、纪念馆 |
+| 文化 | ~30 | 博物馆、历史建筑、创意街区、寺庙、书店 |
 | 娱乐 | ~10 | 游船、主题乐园、水族馆、剧院 |
 | 自然 | ~5 | 城市公园、滨江景观 |
 | 购物 | ~5 | 商业街、艺术商场 |
 
-每条 POI 包含评分、客单价、排队数据、团购信息、销量趋势等，为 RouteAgent 提供足够的决策信息。
+每条 POI 含 28 个字段：评分体系（总分/口味/性价比等）、客单价、团购信息、排队数据（峰值/非峰值）、营业时间、销量趋势等。
 
 ---
 
 ## 九、FastAPI 接口
-
-### 接口列表
 
 ```
 POST /route/generate   首次生成路线（SSE 流式）
@@ -349,18 +338,43 @@ POST /route/refine     局部替换（SSE 流式）
 GET  /health           健康检查
 ```
 
-### SSE 事件格式
+### 请求格式
+
+`POST /route/generate`：
+```json
+{
+  "user_input": "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点",
+  "conversation_history": [],
+  "locked_nodes": []
+}
+```
+
+`POST /route/refine`（需携带上一次返回的完整路线）：
+```json
+{
+  "user_input": "换一家不排队的餐厅",
+  "conversation_history": [],
+  "locked_nodes": [],
+  "current_route": [/* 上次 result 事件中的 route 数组 */]
+}
+```
+
+### SSE 事件流
 
 ```
-event: step    → {"message": "已解析需求：上海外滩，预算300元"}
+event: step    → {"message": "💡 用户提到本帮菜和文化景点，预算300元..."}
+event: step    → {"message": "已解析需求：上海外滩，14:00-21:00（7小时），2人，预算300元，餐饮、文化"}
 event: step    → {"message": "找到候选POI：餐饮10个、文化8个"}
-event: step    → {"message": "路线生成完成，共3个地点"}
-event: result  → {完整路线 JSON，见下方}
+event: step    → {"message": "地理聚合完成：中心半径3.0km，时间预算7小时→最多6站"}
+event: step    → {"message": "路线生成完成，共4个地点"}
+event: step    → {"message": "已补充团购/排队/趋势信息"}
+event: step    → {"message": "路线规划完成，已生成地图链接"}
+event: result  → {完整路线 JSON}
 event: done    → {}
 event: error   → {"message": "错误信息"}
 ```
 
-### result 事件完整结构
+### result 事件数据结构
 
 ```json
 {
@@ -370,68 +384,50 @@ event: error   → {"message": "错误信息"}
       "name": "外婆家（南京西路店）",
       "category": "餐饮",
       "address": "南京西路1038号",
-      "lat": 31.2245,
-      "lng": 121.4491,
+      "lat": 31.2245, "lng": 121.4491,
       "rating": 4.8,
       "avg_price_per_person": 128,
       "queue_risk": "高",
       "queue_risk_tip": "晚高峰等位约40分钟，建议17:30前到店",
       "has_group_buy": true,
-      "group_buy": {
-        "title": "双人尊享套餐",
-        "original_price": 380,
-        "current_price": 258,
-        "discount": "6.8折"
-      },
+      "group_buy": {"title": "双人尊享套餐", "original_price": 380, "current_price": 258, "discount": "6.8折"},
       "stay_minutes": 90,
       "transport_to_next": "步行约8分钟",
       "transport_polyline": "121.4491,31.2245;121.4510,31.2250;...",
-      "navigation_url": "https://uri.amap.com/navigation?to=121.4491,31.2245,外婆家&mode=walk&coordinate=gaode&callnative=1",
+      "navigation_url": "https://uri.amap.com/navigation?to=...",
       "trend_tag": "火爆（已售1.2万单）"
     }
   ],
   "map_url": "https://restapi.amap.com/v3/staticmap?...",
   "summary": "为你安排了3站行程，预计游玩4小时，1处有团购优惠，餐饮消费约258元。",
-  "agent_steps": ["已解析需求：...", "找到候选POI：...", "路线生成完成"]
+  "agent_steps": ["💡 ...", "已解析需求：...", "找到候选POI：...", "路线生成完成"]
 }
 ```
-
-**新增字段说明**（相比原始 POI 数据）：
-
-| 字段 | 来源 | 说明 |
-|---|---|---|
-| `transport_polyline` | 高德步行路径 API | `"lng,lat;lng,lat;..."` 格式，前端 JS 地图绘制蓝线用；最后一个 POI 为 null |
-| `navigation_url` | OutputAgent 生成 | 高德 URI Scheme，手机点击跳转导航 App |
-| `queue_risk_tip` | EnrichAgent 生成 | 人性化的排队提示文字 |
-| `group_buy.discount` | EnrichAgent 计算 | 折扣率，如"6.8折" |
-| `trend_tag` | EnrichAgent 生成 | 含销量数字，如"火爆（已售1.2万单）" |
 
 ---
 
 ## 十、部署
 
-### 当前线上环境
+### 线上环境（Railway）
 
-**Railway**（已上线）：`https://ai-route-planner-production.up.railway.app`
+**地址**：`https://ai-route-planner-production.up.railway.app`
 
-- push 到 main 分支自动触发重新部署
-- API Key 在 Railway 控制台 Variables 面板填写，不进代码
+- `git push` 到 main 自动触发重新部署
+- 环境变量在 Railway Variables 面板填写，不进代码
 - 启动时自动执行 `migrate_to_sqlite.py` 生成 `poi.db`
+- 自带 HTTPS，满足 NoCode 前端的 Mixed Content 限制要求
 
 ### 本地开发
 
 ```bash
-bash setup.sh
+bash setup.sh   # 创建 .venv、装依赖、生成 poi.db、复制 .env
+# 填入 .env 中的 API Key
 PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-
-### HTTPS 要求
-
-NoCode 前端页面托管在 HTTPS 域名下，后端必须也是 HTTPS，否则浏览器拒绝混合内容请求（Mixed Content）。Railway 自带 HTTPS，本地开发可用 ngrok 临时暴露。
 
 ### 高德 API Key 说明
 
 | Key 类型 | 用途 | 配置位置 |
 |---|---|---|
-| Web 服务 Key | 静态地图图片、步行路径规划（服务器 HTTP 调用） | Railway Variables / 本地 `.env` |
-| Web 端 JS Key | 前端动态交互地图（浏览器加载 SDK） | 前端 HTML 代码中，绑定域名 `*.nocode.host` |
+| Web 服务 Key | 静态地图、步行路径规划（服务器 HTTP 调用） | Railway Variables / `.env` |
+| Web 端 JS Key | 前端动态交互地图（浏览器加载 SDK） | 前端 HTML，绑定域名 `*.nocode.host` |

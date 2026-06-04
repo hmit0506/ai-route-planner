@@ -13,7 +13,8 @@ _SYSTEM_PROMPT = """\
 
 规则：
 - 站点数量以 max_pois 为参考，可根据行程丰富度±1站灵活调整，但最少3站
-- 至少包含1个餐饮类和1个文化/娱乐/自然类
+- 餐饮类站点数量不超过 max_dining；文化/娱乐/自然类站点数量不少于 min_cultural
+- 全天行程应体现"景点为主、餐饮穿插"的节奏，而非连续多个餐厅
 - 按游览顺序排列（lat/lng越近越好，减少来回折腾）
 - stay_minutes参考：餐饮60-120，博物馆/景点60-90，书店/街区30-60，咖啡/奶茶20-40
 - 所有stay_minutes之和控制在 duration_hours×60 的75%以内（留出交通时间）
@@ -64,13 +65,16 @@ class RouteNode(BaseNode):
 
         max_pois = intent.get("max_pois", 4)
         duration_hours = intent.get("duration_hours", 4)
+        max_dining = intent.get("max_dining", max_pois - 1)
+        min_cultural = intent.get("min_cultural", 1)
 
         user_msg = (
             f"用户意图：{json.dumps(intent, ensure_ascii=False)}\n\n"
-            f"时间约束：总行程{duration_hours}小时，最多选{max_pois}站（含交通时间）\n\n"
+            f"站点约束：总行程{duration_hours}小时，参考站数{max_pois}站，"
+            f"餐饮类≤{max_dining}个，文化/娱乐/自然类≥{min_cultural}个\n\n"
             f"候选POI（已按地理聚合过滤，每类最多10个）：\n"
             f"{json.dumps(compact_candidates, ensure_ascii=False, indent=2)}\n\n"
-            f"请选出最优路线，严格不超过{max_pois}站。"
+            f"请选出最优路线，餐饮≤{max_dining}个，文化/娱乐/自然≥{min_cultural}个。"
         )
 
         messages = [
