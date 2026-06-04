@@ -52,6 +52,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
 
     initial: RouteState = {
         "user_input": req.user_input,
+        "language": req.language,
         "intent": {},
         "candidates": {},
         "route": [],
@@ -132,6 +133,7 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
 
     initial: RouteState = {
         "user_input": req.user_input,
+        "language": req.language,
         "intent": {},
         "candidates": {},
         "route": req.current_route,

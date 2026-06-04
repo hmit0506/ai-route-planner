@@ -3,6 +3,7 @@ from typing import TypedDict, List, Dict, Any
 
 class RouteState(TypedDict):
     user_input: str
+    language: str                        # "zh-TW" | "zh-CN" | "en"
     intent: Dict[str, Any]
     candidates: Dict[str, Any]
     route: List[Dict[str, Any]]

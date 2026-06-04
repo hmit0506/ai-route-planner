@@ -2,16 +2,7 @@ from typing import Dict, Any
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
-
-
-def _queue_tip(poi: dict) -> str:
-    risk = poi.get("queue_risk", "低")
-    peak = poi.get("queue_minutes_peak", 0)
-    if risk == "高" and peak > 0:
-        return f"晚高峰等位约{peak}分钟，建议提前到店"
-    if risk == "中" and peak > 0:
-        return f"高峰期等位约{peak}分钟"
-    return "基本无需等位"
+import route_planner.i18n as i18n
 
 
 def _group_buy(poi: dict) -> dict | None:
@@ -54,6 +45,7 @@ class EnrichNode(BaseNode):
         candidates = state["candidates"]
         selection = state["route"]
         intent = state.get("intent", {})
+        lang = state.get("language", "zh-TW")
         food_pref = intent.get("food_pref", [])
         culture_pref = intent.get("culture_pref", [])
 
@@ -87,7 +79,7 @@ class EnrichNode(BaseNode):
                 "half_year_sales": poi.get("half_year_sales", 0),
                 "avg_price_per_person": poi.get("avg_price_per_person", 0),
                 "queue_risk": poi.get("queue_risk", "低"),
-                "queue_risk_tip": _queue_tip(poi),
+                "queue_risk_tip": i18n.queue_tip(poi, lang),
                 "has_group_buy": poi.get("has_group_buy", False),
                 "group_buy": _group_buy(poi),
                 "stay_minutes": item.get("stay_minutes", 60),

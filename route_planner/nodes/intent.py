@@ -8,6 +8,7 @@ from typing import Dict, Any, Tuple
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 from route_planner.llm import call_llm
+from route_planner.i18n import normalize as _norm, LANG_NAME
 
 
 def _parse_cot_response(raw: str) -> Tuple[str, dict]:
@@ -64,9 +65,11 @@ def _validate_and_fix(intent: dict) -> dict:
 
     return intent
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT_TEMPLATE = """\
 你是一个本地路线规划助手的意图解析模块。
 用户会用自然语言描述出行需求，你需要先简要说明推理过程，再输出结构化 JSON。
+
+{lang_instruction}
 
 输出格式（严格遵守，两部分之间空一行）：
 思考：[1-2句话，像向朋友复述一样描述你理解的用户需求，例如："用户想在外滩逛3小时，吃本帮菜、看历史建筑，预算300元。"严禁出现任何技术字段名（must_include_categories、duration_hours、food_pref等均不允许出现）]
@@ -90,6 +93,10 @@ JSON Schema：
   "dining_count": 整数（用户明确提到的餐饮活动数量，未提到则为0）
 }
 
+字段语言规则（重要）：
+- city / area / food_pref / culture_pref / avoid 字段统一使用繁體中文，以便匹配資料庫（即使用户用英文或简体输入，也要转成繁体）
+- 推理说明（思考：那行）用用户实际使用的语言输出
+
 规则：
 - budget_per_person = budget_total / party_size（四舍五入到整数）
 - 若用户未指定时间，time_range默认为 {"start": "14:00", "end": "21:00"}
@@ -106,12 +113,24 @@ JSON Schema：
 """
 
 
+def _build_system_prompt(lang: str) -> str:
+    lang_key = _norm(lang)
+    if lang_key == "en":
+        instruction = "The user is writing in English. Output the reasoning line in English too."
+    elif lang_key == "zh-CN":
+        instruction = "用户使用简体中文。推理说明用简体中文输出。"
+    else:
+        instruction = "用戶使用繁體中文。推理說明用繁體中文輸出。"
+    return _SYSTEM_PROMPT_TEMPLATE.format(lang_instruction=instruction)
+
+
 class IntentNode(BaseNode):
     def __call__(self, state: RouteState) -> Dict[str, Any]:
         user_input = state["user_input"]
+        lang = state.get("language", "zh-TW")
         history = state.get("conversation_history", [])
 
-        messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+        messages = [{"role": "system", "content": _build_system_prompt(lang)}]
         for turn in history:
             messages.append(turn)
         messages.append({"role": "user", "content": user_input})
