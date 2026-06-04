@@ -18,30 +18,38 @@ _SYSTEM_PROMPT = """\
 - stay_minutes参考：餐饮60-120，博物馆/景点60-90，书店/街区30-60，咖啡/奶茶20-40
 - 所有stay_minutes之和控制在 duration_hours×60 的75%以内（留出交通时间）
 - 预算优先用group_buy_price（团购实付价），无团购才用avg_price_per_person；总价不超budget_per_person
-- queue_minutes_peak > 30 的地点安排在开场时段或14:00前，避开晚高峰
-- half_year_sales 越高说明越热门，同等条件下优先选高销量
+- 预算有限时优先选value_rating高的POI（性价比好）；review_count少于100的POI评分可信度低，谨慎选入
+- queue_minutes_peak > 30 但 queue_minutes_offpeak <= 15 的POI可安排在非高峰时段（开场或14:00前）；两者都高则降低优先级
+- 餐饮类优先参考taste_rating；half_year_sales越高说明越热门，同等条件下优先高销量
 - 只输出JSON数组，不要有任何额外文字或解释
 """
 
 
 def _compact(poi: dict) -> dict:
     gb_price = poi.get("group_buy_current_price") if poi.get("has_group_buy") else None
-    return {
+    result = {
         "poi_id": poi["id"],
         "name": poi["name"],
         "category": poi["category"],
         "sub_category": poi.get("sub_category", ""),
         "area": poi.get("area", ""),
         "rating": poi.get("rating", 0),
+        "review_count": poi.get("review_count", 0),          # 评价数：权衡评分可信度
+        "value_rating": poi.get("value_rating", 0),          # 性价比评分：预算敏感用户优先考虑
         "avg_price_per_person": poi.get("avg_price_per_person", 0),
-        "group_buy_price": gb_price,           # 团购实付价，None表示无团购
+        "group_buy_price": gb_price,
         "queue_risk": poi.get("queue_risk", "低"),
-        "queue_minutes_peak": poi.get("queue_minutes_peak", 0),  # 高峰等位分钟数
-        "half_year_sales": poi.get("half_year_sales", 0),        # 销量，反映热门程度
+        "queue_minutes_peak": poi.get("queue_minutes_peak", 0),
+        "queue_minutes_offpeak": poi.get("queue_minutes_offpeak", 0),  # 非高峰等位：决定是否可错峰安排
+        "half_year_sales": poi.get("half_year_sales", 0),
         "business_hours": poi.get("business_hours", ""),
         "lat": poi.get("lat", 0),
         "lng": poi.get("lng", 0),
     }
+    # 餐饮类额外附上口味评分，是食客最核心关注点
+    if poi.get("category") == "餐饮":
+        result["taste_rating"] = poi.get("taste_rating", 0)
+    return result
 
 
 class RouteNode(BaseNode):

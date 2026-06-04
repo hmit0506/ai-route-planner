@@ -2,17 +2,72 @@
 IntentAgent: parse natural-language user input into structured JSON intent.
 """
 import json
-from typing import Dict, Any
+import re
+from typing import Dict, Any, Tuple
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 from route_planner.llm import call_llm
 
+
+def _parse_cot_response(raw: str) -> Tuple[str, dict]:
+    """Extract reasoning text and JSON from CoT response."""
+    raw = raw.strip()
+    # Find the JSON block (starts with { or ```json)
+    json_match = re.search(r"(\{[\s\S]+\})", raw)
+    if not json_match:
+        return "", json.loads(raw)
+    json_str = json_match.group(1)
+    intent = json.loads(json_str)
+    # Reasoning is everything before the JSON block
+    reasoning = raw[:json_match.start()].strip()
+    # Strip "思考：" prefix if present
+    reasoning = re.sub(r"^思考[：:]\s*", "", reasoning).strip()
+    return reasoning, intent
+
+
+def _validate_and_fix(intent: dict) -> dict:
+    """Auto-fix common IntentAgent errors."""
+    # Fix duration_hours if missing or zero
+    if not intent.get("duration_hours"):
+        try:
+            tr = intent.get("time_range", {})
+            sh, sm = map(int, tr["start"].split(":"))
+            eh, em = map(int, tr["end"].split(":"))
+            intent["duration_hours"] = max(1, round((eh * 60 + em - sh * 60 - sm) / 60))
+        except Exception:
+            intent["duration_hours"] = 4
+
+    # Fix budget_per_person if inconsistent with budget_total / party_size
+    total = intent.get("budget_total", 0)
+    party = intent.get("party_size", 2) or 2
+    if total and party:
+        expected_pp = round(total / party)
+        if abs(intent.get("budget_per_person", 0) - expected_pp) > 5:
+            intent["budget_per_person"] = expected_pp
+
+    # Ensure must_include_categories is not empty
+    if not intent.get("must_include_categories"):
+        intent["must_include_categories"] = ["餐饮"]
+
+    # Auto-add culture/entertainment for long trips
+    cats = intent["must_include_categories"]
+    if intent.get("duration_hours", 0) >= 5 and "餐饮" in cats:
+        if not any(c in cats for c in ["文化", "娱乐"]):
+            intent["must_include_categories"] = cats + ["文化"]
+
+    return intent
+
 _SYSTEM_PROMPT = """\
 你是一个本地路线规划助手的意图解析模块。
-用户会用自然语言描述出行需求，你需要将其解析为标准的结构化 JSON。
+用户会用自然语言描述出行需求，你需要先简要说明推理过程，再输出结构化 JSON。
 
-输出必须严格遵守以下 JSON Schema，直接输出 JSON，不要有任何额外文字：
+输出格式（严格遵守，两部分之间空一行）：
+思考：[1-3句话说明你如何理解用户需求，重点解释不明确的字段是如何推断的]
+
+{"city": ..., "area": ..., ...}
+
+JSON Schema：
 {
   "city": "城市名（字符串）",
   "area": "商圈/区域（字符串）",
@@ -49,23 +104,26 @@ class IntentNode(BaseNode):
             messages.append(turn)
         messages.append({"role": "user", "content": user_input})
 
-        intent = call_llm(messages, parse_json=True)
+        raw = call_llm(messages, parse_json=False)
 
-        # Ensure duration_hours is always populated
-        if not intent.get("duration_hours"):
-            try:
-                tr = intent.get("time_range", {})
-                sh, sm = map(int, tr["start"].split(":"))
-                eh, em = map(int, tr["end"].split(":"))
-                intent["duration_hours"] = max(1, round((eh * 60 + em - sh * 60 - sm) / 60))
-            except Exception:
-                intent["duration_hours"] = 4
+        # Split reasoning and JSON
+        reasoning, intent = _parse_cot_response(raw)
+
+        # Code-level validation and auto-fix
+        intent = _validate_and_fix(intent)
 
         updates = list(state.get("stream_updates", []))
+        if reasoning:
+            updates.append(f"💡 {reasoning}")
+
         city = intent.get("city", "")
         area = intent.get("area", "")
         budget = intent.get("budget_total", "")
+        duration = intent.get("duration_hours", "")
+        party = intent.get("party_size", 2)
+        tr = intent.get("time_range", {})
+        time_str = f"{tr.get('start','')}-{tr.get('end','')}" if tr else ""
         cats = "、".join(intent.get("must_include_categories", []))
-        updates.append(f"已解析需求：{city}{area}，预算{budget}元，{cats}")
+        updates.append(f"已解析需求：{city}{area}，{time_str}（{duration}小时），{party}人，预算{budget}元，{cats}")
 
         return {**state, "intent": intent, "stream_updates": updates}
