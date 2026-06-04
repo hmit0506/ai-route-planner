@@ -43,6 +43,16 @@ def _build_map_url(route: list) -> str:
     )
 
 
+def _nav_url(poi: dict) -> str:
+    from urllib.parse import quote
+    name = quote(poi.get("name", ""))
+    return (
+        f"https://uri.amap.com/navigation"
+        f"?to={poi['lng']},{poi['lat']},{name}"
+        f"&mode=walk&coordinate=gaode&callnative=1"
+    )
+
+
 def _build_summary(route: list) -> str:
     n = len(route)
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
@@ -64,6 +74,7 @@ class OutputNode(BaseNode):
 
         for i, poi in enumerate(route):
             poi["order"] = i + 1
+            poi["navigation_url"] = _nav_url(poi)
             if i < len(route) - 1:
                 nxt = route[i + 1]
                 km = _haversine_km(poi["lat"], poi["lng"], nxt["lat"], nxt["lng"])
