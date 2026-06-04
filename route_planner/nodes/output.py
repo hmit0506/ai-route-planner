@@ -3,6 +3,7 @@ import os
 import urllib.request
 import urllib.parse
 import json
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any
 
 from route_planner.node import BaseNode
@@ -106,21 +107,21 @@ def _nav_url(poi: dict) -> str:
 
 def _build_fulfillment(route: list, intent: dict) -> dict:
     """Compare actual route against user intent, report satisfied/unmatched/tips."""
-    food_pref    = intent.get("food_pref", [])
-    culture_pref = intent.get("culture_pref", [])
-    meal_plan    = intent.get("meal_plan", [])
-    avoid        = intent.get("avoid", [])
+    food_pref      = intent.get("food_pref", [])
+    culture_pref   = intent.get("culture_pref", [])
+    dining_count_r = intent.get("dining_count", 0)
+    avoid          = intent.get("avoid", [])
 
     satisfied, unmatched, tips = [], [], []
 
-    # Check meal_plan
+    # Check dining_count
     dining_pois = [p for p in route if p.get("category") == "餐饮"]
-    if meal_plan:
-        if len(dining_pois) >= len(meal_plan):
-            satisfied.append(f"餐饮安排 ✓ （{len(meal_plan)}顿：{'、'.join(meal_plan)}）")
+    if dining_count_r > 0:
+        if len(dining_pois) == dining_count_r:
+            satisfied.append(f"餐饮安排 ✓ （{dining_count_r}个）")
         else:
             unmatched.append(
-                f"餐饮不足：要求{len(meal_plan)}顿（{'、'.join(meal_plan)}），实际安排{len(dining_pois)}个餐饮站点"
+                f"餐饮不足：要求{dining_count_r}个，实际安排{len(dining_pois)}个餐饮站点"
             )
             tips.append("可说「再加一家餐厅」进行多轮调整")
 
@@ -188,7 +189,20 @@ class OutputNode(BaseNode):
         route = [dict(r) for r in state["route"]]
         api_key = os.getenv("AMAP_API_KEY", "")
 
-        polylines: list[str | None] = []
+        # Fetch all walking polylines in parallel
+        n_segments = len(route) - 1
+        def _fetch_segment(i):
+            poi, nxt = route[i], route[i + 1]
+            return _fetch_walking_polyline(
+                poi["lng"], poi["lat"], nxt["lng"], nxt["lat"], api_key
+            ) if api_key else None
+
+        if n_segments > 0:
+            with ThreadPoolExecutor(max_workers=min(n_segments, 5)) as ex:
+                polylines = list(ex.map(_fetch_segment, range(n_segments)))
+        else:
+            polylines = []
+
         for i, poi in enumerate(route):
             poi["order"] = i + 1
             poi["navigation_url"] = _nav_url(poi)
@@ -196,11 +210,7 @@ class OutputNode(BaseNode):
                 nxt = route[i + 1]
                 km = _haversine_km(poi["lat"], poi["lng"], nxt["lat"], nxt["lng"])
                 poi["transport_to_next"] = _transport_text(km)
-                polyline = _fetch_walking_polyline(
-                    poi["lng"], poi["lat"], nxt["lng"], nxt["lat"], api_key
-                ) if api_key else None
-                poi["transport_polyline"] = polyline  # "lng,lat;lng,lat;..." for JS map
-                polylines.append(polyline)
+                poi["transport_polyline"] = polylines[i]
             else:
                 poi["transport_to_next"] = ""
                 poi["transport_polyline"] = None

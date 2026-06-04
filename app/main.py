@@ -30,17 +30,23 @@ _refine_graph = build_refine_graph()
 _cache: dict[str, dict] = {}
 
 
-def _cache_key(req: RouteRequest) -> str:
-    intent_hint = req.user_input[:80]
-    return f"{intent_hint}|locked={req.locked_nodes}"
+def _intent_cache_key(intent: dict) -> str:
+    """Structured cache key from parsed intent — city+area+budget_tier+sorted_cats+dining_count."""
+    city   = intent.get("city", "")
+    area   = intent.get("area", "")
+    budget = (intent.get("budget_per_person", 0) // 50) * 50  # bucket to nearest 50
+    cats   = ",".join(sorted(intent.get("must_include_categories", [])))
+    dining = intent.get("dining_count", 0)
+    dur    = intent.get("duration_hours", 0)
+    return f"{city}|{area}|{budget}|{cats}|d{dining}|h{dur}"
 
 
 async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
-    cache_key = _cache_key(req)
-    if cache_key in _cache:
-        cached = _cache[cache_key]
+    # Fast check: exact input match
+    raw_key = req.user_input[:100]
+    if raw_key in _cache:
         yield _sse("step", {"message": "缓存命中，直接返回结果"})
-        yield _sse("result", _format_result(cached))
+        yield _sse("result", _format_result(_cache[raw_key]))
         yield _sse("done", {})
         return
 
@@ -58,9 +64,9 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
     }
 
     prev_steps: list[str] = []
-
-    # Stream step updates by running the graph node-by-node via stream
+    intent_key: str | None = None
     final_state: RouteState | None = None
+
     try:
         for chunk in _graph.stream(initial, stream_mode="values"):
             new_steps = chunk.get("stream_updates", [])
@@ -68,12 +74,25 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
                 yield _sse("step", {"message": step})
             prev_steps = new_steps
             final_state = chunk
+
+            # After IntentNode resolves, check intent-based cache
+            if intent_key is None and chunk.get("intent"):
+                intent_key = _intent_cache_key(chunk["intent"])
+                if intent_key in _cache:
+                    yield _sse("step", {"message": "意图缓存命中，直接返回结果"})
+                    yield _sse("result", _format_result(_cache[intent_key]))
+                    yield _sse("done", {})
+                    return
+
     except Exception as exc:
         yield _sse("error", {"message": str(exc)})
         return
 
     if final_state:
-        _cache[cache_key] = final_state
+        # Store under both raw input key and intent-based key
+        _cache[raw_key] = final_state
+        if intent_key:
+            _cache[intent_key] = final_state
         yield _sse("result", _format_result(final_state))
 
     yield _sse("done", {})

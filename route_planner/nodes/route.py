@@ -13,8 +13,8 @@ _SYSTEM_PROMPT = """\
 
 规划原则：
 - 站点数量以 max_pois 为参考，可根据行程丰富度灵活调整，但最少3站
-- 若用户有明确的 meal_plan（如["午饭","晚饭"]），餐饮站点数量必须匹配，不多不少
-- 若用户没有明确 meal_plan，餐饮站点不超过总站数的40%，保证行程多样性
+- 若 dining_count > 0，餐饮站点数量必须恰好等于 dining_count，不多不少
+- 若 dining_count == 0，餐饮站点合理安排即可，保证行程有非餐饮类站点
 - 按游览顺序排列（lat/lng越近越好，避免来回折腾）
 - stay_minutes参考：正餐60-120，博物馆/景点60-90，书店/街区30-60，咖啡/茶饮20-40
 - 所有stay_minutes之和控制在 duration_hours×60 的75%以内（留出交通时间）
@@ -71,13 +71,12 @@ def _validate(selection: list, intent: dict, poi_lookup: dict) -> str | None:
     dining_count = categories.count("餐饮")
     non_dining = len(selection) - dining_count
 
-    meal_plan = intent.get("meal_plan", [])
+    expected_dining = intent.get("dining_count", 0)
 
-    # Check meal count matches meal_plan
-    if meal_plan:
-        if dining_count != len(meal_plan):
+    if expected_dining > 0:
+        if dining_count != expected_dining:
             return (
-                f"用户明确要求{len(meal_plan)}顿饭/饮品（{meal_plan}），"
+                f"用户明确要求{expected_dining}个餐饮活动，"
                 f"但选了{dining_count}个餐饮站点，数量不符"
             )
     else:
@@ -99,7 +98,7 @@ class RouteNode(BaseNode):
 
         max_pois = intent.get("max_pois", 4)
         duration_hours = intent.get("duration_hours", 4)
-        meal_plan = intent.get("meal_plan", [])
+        dining_count_req = intent.get("dining_count", 0)
 
         # Build clean user context (exclude internal GeoCluster fields)
         _exclude = {"max_pois", "max_dining", "min_cultural", "_refine"}
@@ -109,9 +108,9 @@ class RouteNode(BaseNode):
         culture_pref = intent.get("culture_pref", [])
 
         meal_note = (
-            f"用户明确要求的餐饮：{meal_plan}（餐饮站点数量必须恰好为{len(meal_plan)}个）"
-            if meal_plan else
-            "用户未指定具体餐次，餐饮站点不超过总站数的40%"
+            f"用户明确要求{dining_count_req}个餐饮活动（餐饮站点数量必须恰好为{dining_count_req}个）"
+            if dining_count_req > 0 else
+            "用户未指定餐次数量，合理安排即可"
         )
         pref_note = ""
         if food_pref:
