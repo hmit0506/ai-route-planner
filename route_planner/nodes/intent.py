@@ -51,11 +51,8 @@ def _validate_and_fix(intent: dict) -> dict:
     if not intent.get("must_include_categories"):
         intent["must_include_categories"] = ["餐饮"]
 
-    # Auto-add culture/entertainment for long trips
-    cats = intent["must_include_categories"]
-    if intent.get("duration_hours", 0) >= 5 and "餐饮" in cats:
-        if not any(c in cats for c in ["文化", "娱乐"]):
-            intent["must_include_categories"] = cats + ["文化"]
+    # Note: do NOT auto-add "文化" here — database may not have cultural POIs.
+    # LLM should include it in must_include_categories only when user explicitly asks.
 
     # Ensure dining_count is a non-negative integer
     try:
@@ -69,7 +66,7 @@ _SYSTEM_PROMPT_TEMPLATE = """\
 你是一个本地路线规划助手的意图解析模块。
 用户会用自然语言描述出行需求，你需要先简要说明推理过程，再输出结构化 JSON。
 
-{lang_instruction}
+__LANG_INSTRUCTION__
 
 输出格式（严格遵守，两部分之间空一行）：
 思考：[1-2句话，像向朋友复述一样描述你理解的用户需求，例如："用户想在外滩逛3小时，吃本帮菜、看历史建筑，预算300元。"严禁出现任何技术字段名（must_include_categories、duration_hours、food_pref等均不允许出现）]
@@ -105,11 +102,13 @@ JSON Schema：
 - 若用户未提到预算，budget_total默认为 200
 - must_include_categories 必须至少包含一项
 - 若 duration_hours >= 5 或用户提到"一整天/全天/一天"，must_include_categories 必须同时包含"餐饮"和至少一项"文化"或"娱乐"，不能只有餐饮
-- dining_count = 用户明确提到了几个餐饮活动：
+- dining_count = 用户明确提到了几个餐饮活动（注意：菜系偏好不算次数）：
   "包括午饭和晚饭" → 2
   "喝下午茶，吃川菜" → 2（每个独立的饮食活动算1个）
   "随便逛逛" → 0（未提及）
   "吃顿好的" → 1
+  "想吃日本料理" → 0（仅菜系偏好，未指定次数）
+  "想吃日料，再喝杯咖啡" → 2（两个独立饮食活动）
 """
 
 
@@ -121,7 +120,7 @@ def _build_system_prompt(lang: str) -> str:
         instruction = "用户使用简体中文。推理说明用简体中文输出。"
     else:
         instruction = "用戶使用繁體中文。推理說明用繁體中文輸出。"
-    return _SYSTEM_PROMPT_TEMPLATE.format(lang_instruction=instruction)
+    return _SYSTEM_PROMPT_TEMPLATE.replace("__LANG_INSTRUCTION__", instruction)
 
 
 class IntentNode(BaseNode):

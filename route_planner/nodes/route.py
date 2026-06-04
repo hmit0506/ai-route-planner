@@ -80,7 +80,10 @@ def _validate(selection: list, intent: dict, poi_lookup: dict) -> str | None:
                 f"但选了{dining_count}个餐饮站点，数量不符"
             )
     else:
-        if non_dining == 0:
+        # Only complain if non-dining candidates actually exist
+        all_pois = list(poi_lookup.values())
+        has_non_dining_candidates = any(p.get("category") != "餐饮" for p in all_pois)
+        if non_dining == 0 and has_non_dining_candidates:
             return "路线全是餐饮，缺少文化/娱乐/自然类站点"
 
     return None
