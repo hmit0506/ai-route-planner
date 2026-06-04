@@ -46,7 +46,7 @@ def _fetch_walking_polyline(
         steps = data["route"]["paths"][0]["steps"]
         # Each step has a polyline string "lng,lat;lng,lat;..."
         full = ";".join(s["polyline"] for s in steps)
-        return _downsample(full, max_points=60)
+        return _downsample(full, max_points=40)
     except Exception:
         return None
 
@@ -88,7 +88,7 @@ def _build_map_url(route: list, polylines: list[str | None]) -> str:
     path_parts = []
     for polyline in polylines:
         if polyline:
-            path_parts.append(f"weight:4;color:0x0065FF;transparency:0.7:{polyline}")
+            path_parts.append(f"4,0x0065FF,0.7,,:{polyline}")
     if path_parts:
         base += "&paths=" + "|".join(path_parts)
 
