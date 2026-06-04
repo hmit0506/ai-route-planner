@@ -83,11 +83,6 @@ def _validate(selection: list, intent: dict, poi_lookup: dict) -> str | None:
     else:
         if non_dining == 0:
             return "路线全是餐饮，缺少文化/娱乐/自然类站点"
-        if dining_count > len(selection) * 0.5 and len(selection) >= 4:
-            return (
-                f"餐饮站点占比过高（{dining_count}/{len(selection)}），"
-                f"请减少餐饮、增加文化娱乐活动"
-            )
 
     return None
 
