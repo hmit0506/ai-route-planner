@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.schemas import RouteRequest
-from route_planner.graph import build_graph
+from route_planner.graph import build_graph, build_refine_graph
 from route_planner.state import RouteState
 
 app = FastAPI(title="AI Route Planner", version="1.0.0")
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 _graph = build_graph()
+_refine_graph = build_refine_graph()
 
 # Simple in-memory cache: key → final RouteState
 _cache: dict[str, dict] = {}
@@ -102,13 +103,47 @@ async def generate_route(req: RouteRequest):
     )
 
 
+async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
+    if not req.current_route:
+        yield _sse("error", {"message": "current_route is required for refine"})
+        yield _sse("done", {})
+        return
+
+    initial: RouteState = {
+        "user_input": req.user_input,
+        "intent": {},
+        "candidates": {},
+        "route": req.current_route,
+        "locked_nodes": req.locked_nodes,
+        "map_url": "",
+        "summary": "",
+        "conversation_history": req.conversation_history,
+        "stream_updates": [],
+    }
+
+    prev_steps: list[str] = []
+    final_state: RouteState | None = None
+    try:
+        for chunk in _refine_graph.stream(initial, stream_mode="values"):
+            new_steps = chunk.get("stream_updates", [])
+            for step in new_steps[len(prev_steps):]:
+                yield _sse("step", {"message": step})
+            prev_steps = new_steps
+            final_state = chunk
+    except Exception as exc:
+        yield _sse("error", {"message": str(exc)})
+        return
+
+    if final_state:
+        yield _sse("result", _format_result(final_state))
+
+    yield _sse("done", {})
+
+
 @app.post("/route/refine")
 async def refine_route(req: RouteRequest):
-    # RefineAgent (Day 4) — for now delegate to full pipeline with locked_nodes context
-    if not req.conversation_history:
-        raise HTTPException(status_code=400, detail="conversation_history required for refine")
     return StreamingResponse(
-        _stream_route(req),
+        _stream_refine(req),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

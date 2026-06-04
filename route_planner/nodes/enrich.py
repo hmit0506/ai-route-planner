@@ -54,6 +54,9 @@ class EnrichNode(BaseNode):
             poi_id = item.get("poi_id") or item.get("id", "")
             poi = poi_lookup.get(poi_id)
             if not poi:
+                # Already-enriched locked POI from a previous route pass
+                if item.get("name"):
+                    enriched.append(item)
                 continue
             enriched.append({
                 "poi_id": poi_id,

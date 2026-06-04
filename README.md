@@ -118,14 +118,16 @@ ai-route-planner/
 ├── route_planner/          # 核心业务包
 │   ├── state.py            # RouteState TypedDict（全局状态）
 │   ├── node.py             # BaseNode 基类
-│   ├── graph.py            # LangGraph 完整流水线
+│   ├── graph.py            # LangGraph 流水线（build_graph + build_refine_graph）
 │   ├── llm.py              # DeepSeek + Claude fallback，指数退避重试
 │   ├── nodes/
 │   │   ├── intent.py       # IntentAgent：意图解析
 │   │   ├── poi_search.py   # POISearchAgent：候选召回
 │   │   ├── route.py        # RouteAgent：路线规划
 │   │   ├── enrich.py       # EnrichAgent：数据补充
-│   │   └── output.py       # OutputAgent：格式化输出
+│   │   ├── output.py       # OutputAgent：格式化输出
+│   │   ├── refine.py       # RefineNode：解析"换一家"意图（LLM）
+│   │   └── refine_select.py # RefineSelectNode：选最优替换 POI（纯代码）
 │   └── data/
 │       └── mock_poi.json   # Mock POI 数据库（100条，覆盖上海主要商圈）
 ├── app/                    # FastAPI 应用
@@ -161,11 +163,22 @@ GET  /health           # 健康检查
 
 ### 请求格式
 
+`POST /route/generate`（首次生成）：
 ```json
 {
   "user_input": "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点",
   "conversation_history": [],
   "locked_nodes": []
+}
+```
+
+`POST /route/refine`（局部替换）：
+```json
+{
+  "user_input": "换一家不排队的餐厅",
+  "conversation_history": [],
+  "locked_nodes": [],
+  "current_route": [/* 上一次 /route/generate 返回的 route 数组 */]
 }
 ```
 
@@ -209,7 +222,7 @@ AMAP_API_KEY=...               # 高德地图静态图 API（由成员B填入）
 - [x] 项目骨架 + IntentAgent + DeepSeek API 调通
 - [x] 完整 LangGraph 流水线，5个 Agent 全部接通，Mock POI 数据库（100条）
 - [x] FastAPI + SSE 流式输出（/route/generate, /route/refine, /health，内存缓存）
-- [ ] RefineAgent 局部替换 + 多轮对话
+- [x] RefineAgent 局部替换：RefineNode（LLM）+ RefineSelectNode（纯代码），1次 LLM 调用
 - [ ] 前后端联调
 - [ ] 优化（缓存、小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交
