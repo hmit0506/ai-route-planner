@@ -120,7 +120,7 @@ class RouteState(TypedDict):
 - `budget_per_person` 与 `budget_total / party_size` 偏差 > 5 元 → 修正
 - `must_include_categories` 为空 → 补 "餐饮"
 - `duration_hours >= 5` 且只有 "餐饮" → 自动追加 "文化"
-- `meal_plan` 非列表 → 修正为 `[]`
+- `dining_count` 非整数或负数 → 修正为 0
 
 **输出示例**：
 ```json
@@ -132,10 +132,12 @@ class RouteState(TypedDict):
   "food_pref": ["本帮菜"],
   "culture_pref": ["历史建筑"],
   "avoid": [],
-  "meal_plan": ["午饭", "晚饭"],
+  "dining_count": 2,
   "must_include_categories": ["餐饮", "文化"]
 }
 ```
+
+`dining_count` 是整数（用户明确提到几个餐饮活动，0 表示未指定）。用整数避免了命名语义的歧义（"吃川菜" vs "下午茶" 该如何分类的问题）。
 
 ---
 
@@ -189,10 +191,10 @@ class RouteState(TypedDict):
 | `lat/lng` | 地理相邻性判断 |
 
 **餐饮数量决策**：
-- 若 `meal_plan` 有值（如 `["午饭","晚饭"]`）→ 餐饮站点数量必须与 `meal_plan` 长度一致
-- 若 `meal_plan` 为空 → 餐饮站点不超过总站数的 40%，保证行程多样性
+- 若 `dining_count > 0` → 餐饮站点数量必须恰好等于 `dining_count`
+- 若 `dining_count == 0` → 合理安排即可，保证行程有非餐饮类站点
 
-**自我检查机制**：LLM 输出后，代码验证餐饮数量是否符合 `meal_plan`，是否满足最低多样性要求。若不通过，携带纠正说明触发一次重试（最多 1 次）。
+**自我检查机制**：LLM 输出后，代码验证：① 站点数 ≥ 3；② 餐饮数量匹配 dining_count；③ 非全餐饮。若不通过，携带纠正说明触发一次重试，并在 SSE stream 中显示 `⚠️ 自检发现问题`。
 
 **intent 传递**：只传用户原始意图字段，剔除 GeoCluster 内部字段（`max_pois` 等），避免污染 LLM 的上下文理解。
 
@@ -221,7 +223,9 @@ class RouteState(TypedDict):
 
 多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
-EnrichNode 输出的每个 POI 包含 `city` 和 `area` 字段，供 RefineNode 提取地理上下文使用。
+EnrichNode 输出的每个 POI 包含 `city`、`area` 和 `pref_matched` 字段：
+- `city` / `area`：供 RefineNode 提取地理上下文
+- `pref_matched`：True = 该 POI 的 sub_category 匹配用户的 food_pref/culture_pref；False = 最优近似替代；供 OutputNode 生成履约报告
 
 ---
 
@@ -237,7 +241,14 @@ EnrichNode 输出的每个 POI 包含 `city` 和 `area` 字段，供 RefineNode 
 | `transport_polyline` | 高德步行路径 API（`"lng,lat;lng,lat;..."`），供前端 JS 地图绘制蓝线；最后一个 POI 为 null |
 | `navigation_url` | 高德 URI Scheme，手机点击跳转导航 App |
 
-**静态地图 URL 构造**：高德 REST API，含标记点（A/B/C...）+ 步行路径蓝线（每段限 40 个坐标点，防 URL 超长）；步行 API 失败时优雅降级为仅标记点。
+**步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时，而非原来的 N×3s。
+
+**静态地图 URL 构造**：高德 REST API，含标记点（A/B/C...）+ 步行路径蓝线（每段限 40 个坐标点，防 URL 超长）。步行 API 失败时降级为仅标记点。
+
+**履约报告（fulfillment_notes）**：基于 EnrichNode 的 `pref_matched` 标记和 intent 字段，生成：
+- `satisfied`：哪些需求完全满足
+- `unmatched`：哪些没找到及用了什么替代
+- `tips`：多轮对话调整建议（如「换一家川菜餐厅」）
 
 ---
 
@@ -285,11 +296,12 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | LLM 通常调用 2 次（IntentNode + RouteNode） | 减少最大延迟来源；RouteNode 自检失败时触发 1 次重试，最坏 3 次 |
 | GeoClusterNode 纯代码 | < 1ms |
 | POISearchNode SQLite 查询 | < 5ms |
-| EnrichNode / OutputNode 纯代码 | < 50ms（不含高德步行 API） |
+| EnrichNode 纯代码 | < 10ms |
+| OutputNode 步行路径（并行） | 所有段同时发出，最坏情况 = 单段超时 3s（原来是 N×3s） |
 | SSE 流式推送 | 每完成一个节点立即推进度，用户体感"秒开" |
-| 内存缓存 | 相同请求命中缓存直接返回，< 1 秒 |
+| 内存缓存（两级） | 1. 原始输入精确匹配；2. IntentNode 后按 city+area+budget_tier+cats+dining_count 检查；命中则 < 1s | 
 
-高德步行路径 API（OutputNode）每段超时 3 秒，失败时自动降级，不阻塞主流程。
+高德步行路径 API 失败时自动降级为仅标记点地图，不阻塞主流程。
 
 ---
 
