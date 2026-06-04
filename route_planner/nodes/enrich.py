@@ -64,13 +64,14 @@ class EnrichNode(BaseNode):
                     enriched.append(item)
                 continue
             matched = _check_pref_match(poi, food_pref, culture_pref)
+            tf = lambda field, val: i18n.translate_field(field, val, lang)
             enriched.append({
                 "poi_id": poi_id,
                 "order": item.get("order", len(enriched) + 1),
                 "name": poi["name"],
                 "name_en": poi.get("name_en", ""),
-                "category": poi["category"],
-                "sub_category": poi.get("sub_category", ""),
+                "category": tf("category", poi["category"]),
+                "sub_category": tf("sub_category", poi.get("sub_category", "")),
                 "address": poi["address"],
                 "address_en": poi.get("address_en", ""),
                 "city": poi.get("city", ""),
@@ -80,12 +81,12 @@ class EnrichNode(BaseNode):
                 "rating": poi["rating"],
                 "half_year_sales": poi.get("half_year_sales", 0),
                 "avg_price_per_person": poi.get("avg_price_per_person", 0),
-                "queue_risk": poi.get("queue_risk", "低"),
+                "queue_risk": tf("queue_risk", poi.get("queue_risk", "低")),
                 "queue_risk_tip": i18n.queue_tip(poi, lang),
                 "has_group_buy": poi.get("has_group_buy", False),
                 "group_buy": _group_buy(poi),
                 "stay_minutes": item.get("stay_minutes", 60),
-                "trend_tag": _trend_tag(poi),
+                "trend_tag": tf("trend_tag", _trend_tag(poi)),
                 "business_hours": poi.get("business_hours", ""),
                 "pref_matched": matched,  # True = matches user preference; False = best available substitute
             })
