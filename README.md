@@ -55,37 +55,42 @@ LLM 仅调用 **2 次**（IntentAgent + RouteAgent），其余均为纯代码，
 
 ## 快速开始
 
-### 1. 环境准备
+### 1. 一键建环境
+
+需要 Python 3.11+（推荐 3.12）。
 
 ```bash
-# 复用已有 venv（已安装所有依赖）
-source ../intelligent-trading-dag/.venv/bin/activate
-
-# 或新建
-pip install -e .
+bash setup.sh
 ```
 
-### 2. 配置 API Key
+脚本会自动创建 `.venv`、安装所有依赖，并生成 `.env` 文件。
 
-```bash
-cp .env.example .env
-# 编辑 .env，填入：
-# DEEPSEEK_API_KEY=...
-# ANTHROPIC_API_KEY=...
-# AMAP_API_KEY=...
+### 2. 填入 API Key
+
+编辑 `.env`：
+
+```env
+DEEPSEEK_API_KEY=sk-...        # 必填
+ANTHROPIC_API_KEY=sk-ant-...   # 建议填，DeepSeek 限流时自动切换
+AMAP_API_KEY=...               # 填入后地图图片才能正常显示
 ```
 
-### 3. 验证流水线
+### 3. 启动后端服务
 
 ```bash
-# 完整流水线（推荐）
-python scripts/run_pipeline.py
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+访问 `http://localhost:8000/health` 返回 `{"status":"ok"}` 即表示启动成功。
+
+### 4. 验证流水线（可选）
+
+```bash
+# 完整流水线测试
+PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py
 
 # 自定义输入
-python scripts/run_pipeline.py "帮我找北京三里屯周六晚上，预算500元，想吃火锅"
-
-# 仅测试 IntentAgent
-python scripts/run_intent.py
+PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "帮我找北京三里屯周六晚上，预算500元，想吃火锅"
 ```
 
 ### 预期输出
