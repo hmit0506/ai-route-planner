@@ -132,13 +132,14 @@ class OutputNode(BaseNode):
                 nxt = route[i + 1]
                 km = _haversine_km(poi["lat"], poi["lng"], nxt["lat"], nxt["lng"])
                 poi["transport_to_next"] = _transport_text(km)
-                # Fetch real walking path; fall back gracefully if API fails
                 polyline = _fetch_walking_polyline(
                     poi["lng"], poi["lat"], nxt["lng"], nxt["lat"], api_key
                 ) if api_key else None
+                poi["transport_polyline"] = polyline  # "lng,lat;lng,lat;..." for JS map
                 polylines.append(polyline)
             else:
                 poi["transport_to_next"] = ""
+                poi["transport_polyline"] = None
 
         map_url = _build_map_url(route, polylines)
         summary = _build_summary(route)
