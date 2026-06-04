@@ -52,6 +52,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         "locked_nodes": req.locked_nodes,
         "map_url": "",
         "summary": "",
+        "fulfillment_notes": {},
         "conversation_history": req.conversation_history,
         "stream_updates": [],
     }
@@ -87,6 +88,7 @@ def _format_result(state: RouteState) -> dict:
         "route": state.get("route", []),
         "map_url": state.get("map_url", ""),
         "summary": state.get("summary", ""),
+        "fulfillment_notes": state.get("fulfillment_notes", {}),
         "agent_steps": state.get("stream_updates", []),
     }
 
@@ -117,6 +119,7 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
         "locked_nodes": req.locked_nodes,
         "map_url": "",
         "summary": "",
+        "fulfillment_notes": {},
         "conversation_history": req.conversation_history,
         "stream_updates": [],
     }

@@ -38,10 +38,24 @@ def _trend_tag(poi: dict) -> str:
     return tag
 
 
+def _check_pref_match(poi: dict, food_pref: list, culture_pref: list) -> bool:
+    """Return True if this POI's sub_category matches user's relevant preference."""
+    sub = poi.get("sub_category", "")
+    cat = poi.get("category", "")
+    if cat == "餐饮" and food_pref:
+        return any(p in sub for p in food_pref)
+    if cat in ("文化", "娱乐", "自然") and culture_pref:
+        return any(p in sub for p in culture_pref)
+    return True  # No preference to check → considered matched
+
+
 class EnrichNode(BaseNode):
     def __call__(self, state: RouteState) -> Dict[str, Any]:
         candidates = state["candidates"]
         selection = state["route"]
+        intent = state.get("intent", {})
+        food_pref = intent.get("food_pref", [])
+        culture_pref = intent.get("culture_pref", [])
 
         poi_lookup: dict[str, dict] = {
             poi["id"]: poi
@@ -54,10 +68,10 @@ class EnrichNode(BaseNode):
             poi_id = item.get("poi_id") or item.get("id", "")
             poi = poi_lookup.get(poi_id)
             if not poi:
-                # Already-enriched locked POI from a previous route pass
                 if item.get("name"):
                     enriched.append(item)
                 continue
+            matched = _check_pref_match(poi, food_pref, culture_pref)
             enriched.append({
                 "poi_id": poi_id,
                 "order": item.get("order", len(enriched) + 1),
@@ -79,6 +93,7 @@ class EnrichNode(BaseNode):
                 "stay_minutes": item.get("stay_minutes", 60),
                 "trend_tag": _trend_tag(poi),
                 "business_hours": poi.get("business_hours", ""),
+                "pref_matched": matched,  # True = matches user preference; False = best available substitute
             })
 
         enriched.sort(key=lambda x: x["order"])

@@ -104,6 +104,70 @@ def _nav_url(poi: dict) -> str:
     )
 
 
+def _build_fulfillment(route: list, intent: dict) -> dict:
+    """Compare actual route against user intent, report satisfied/unmatched/tips."""
+    food_pref    = intent.get("food_pref", [])
+    culture_pref = intent.get("culture_pref", [])
+    meal_plan    = intent.get("meal_plan", [])
+    avoid        = intent.get("avoid", [])
+
+    satisfied, unmatched, tips = [], [], []
+
+    # Check meal_plan
+    dining_pois = [p for p in route if p.get("category") == "餐饮"]
+    if meal_plan:
+        if len(dining_pois) >= len(meal_plan):
+            satisfied.append(f"餐饮安排 ✓ （{len(meal_plan)}顿：{'、'.join(meal_plan)}）")
+        else:
+            unmatched.append(
+                f"餐饮不足：要求{len(meal_plan)}顿（{'、'.join(meal_plan)}），实际安排{len(dining_pois)}个餐饮站点"
+            )
+            tips.append("可说「再加一家餐厅」进行多轮调整")
+
+    # Check food_pref matching
+    if food_pref:
+        matched_dining = [p for p in dining_pois if p.get("pref_matched")]
+        unmatched_dining = [p for p in dining_pois if not p.get("pref_matched")]
+        if matched_dining:
+            names = "、".join(p["name"] for p in matched_dining)
+            satisfied.append(f"餐饮偏好 {food_pref} ✓ （{names}）")
+        if unmatched_dining:
+            names = "、".join(p["name"] for p in unmatched_dining)
+            subs  = "、".join(p.get("sub_category","") for p in unmatched_dining)
+            unmatched.append(
+                f"未找到 {food_pref} 餐厅，以 {subs}（{names}）替代"
+            )
+            tips.append(f"该商圈暂无 {'、'.join(food_pref)} 餐厅；可在多轮对话中说「换一家 {'或'.join(food_pref)} 餐厅」，系统会在全市范围内搜索")
+
+    # Check culture_pref matching
+    if culture_pref:
+        cultural_pois = [p for p in route if p.get("category") in ("文化","娱乐","自然")]
+        matched_cultural = [p for p in cultural_pois if p.get("pref_matched")]
+        unmatched_cultural = [p for p in cultural_pois if not p.get("pref_matched")]
+        if matched_cultural:
+            names = "、".join(p["name"] for p in matched_cultural)
+            satisfied.append(f"文化偏好 {culture_pref} ✓ （{names}）")
+        if unmatched_cultural:
+            names = "、".join(p["name"] for p in unmatched_cultural)
+            subs  = "、".join(p.get("sub_category","") for p in unmatched_cultural)
+            unmatched.append(f"未找到 {culture_pref} 类地点，以 {subs}（{names}）替代")
+            tips.append(f"可在多轮对话中说「换一个 {'或'.join(culture_pref)}」")
+
+    # Check avoid violations
+    if avoid:
+        violated = [p for p in route if any(a in p.get("sub_category","") for a in avoid)]
+        if violated:
+            names = "、".join(p["name"] for p in violated)
+            unmatched.append(f"包含了你想避开的类型（{avoid}）：{names}")
+            tips.append(f"可说「去掉 {names}」进行替换")
+
+    return {
+        "satisfied": satisfied,
+        "unmatched": unmatched,
+        "tips": tips,
+    }
+
+
 def _build_summary(route: list) -> str:
     n = len(route)
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
@@ -143,6 +207,7 @@ class OutputNode(BaseNode):
 
         map_url = _build_map_url(route, polylines)
         summary = _build_summary(route)
+        fulfillment = _build_fulfillment(route, state.get("intent", {}))
 
         updates = list(state.get("stream_updates", []))
         updates.append("路线规划完成，已生成地图链接")
@@ -152,5 +217,6 @@ class OutputNode(BaseNode):
             "route": route,
             "map_url": map_url,
             "summary": summary,
+            "fulfillment_notes": fulfillment,
             "stream_updates": updates,
         }
