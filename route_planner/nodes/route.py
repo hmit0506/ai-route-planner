@@ -22,6 +22,7 @@ _SYSTEM_PROMPT = """\
 - 预算有限时优先选value_rating高的POI；review_count < 100时评分可信度低，谨慎选入
 - queue_minutes_peak > 30 但 queue_minutes_offpeak <= 15 时可安排在非高峰时段
 - 餐饮类优先参考taste_rating；half_year_sales越高越热门，同等条件下优先高销量
+- 用户的 food_pref（菜系偏好）和 culture_pref（文化偏好）是选站的首要依据：餐饮站点的 sub_category 应尽量匹配 food_pref，文化/娱乐站点的 sub_category 应尽量匹配 culture_pref
 - 只输出JSON数组，不要有任何额外文字或解释
 """
 
@@ -58,7 +59,7 @@ def _compact(poi: dict) -> dict:
     return result
 
 
-def _validate(selection: list, intent: dict) -> str | None:
+def _validate(selection: list, intent: dict, poi_lookup: dict) -> str | None:
     """Return error string if selection violates constraints, else None."""
     if not selection:
         return "路线为空，至少需要3个地点"
@@ -72,21 +73,20 @@ def _validate(selection: list, intent: dict) -> str | None:
 
     meal_plan = intent.get("meal_plan", [])
 
+    # Check meal count matches meal_plan
     if meal_plan:
-        # User specified exact meals: dining count must match
         if dining_count != len(meal_plan):
             return (
-                f"用户明确要求{len(meal_plan)}顿饭（{meal_plan}），"
+                f"用户明确要求{len(meal_plan)}顿饭/饮品（{meal_plan}），"
                 f"但选了{dining_count}个餐饮站点，数量不符"
             )
     else:
-        # No explicit meal plan: ensure at least 1 non-dining spot
         if non_dining == 0:
             return "路线全是餐饮，缺少文化/娱乐/自然类站点"
         if dining_count > len(selection) * 0.5 and len(selection) >= 4:
             return (
                 f"餐饮站点占比过高（{dining_count}/{len(selection)}），"
-                f"行程缺乏多样性，请减少餐饮、增加文化娱乐活动"
+                f"请减少餐饮、增加文化娱乐活动"
             )
 
     return None
@@ -110,17 +110,26 @@ class RouteNode(BaseNode):
         _exclude = {"max_pois", "max_dining", "min_cultural", "_refine"}
         user_intent = {k: v for k, v in intent.items() if k not in _exclude}
 
+        food_pref = intent.get("food_pref", [])
+        culture_pref = intent.get("culture_pref", [])
+
         meal_note = (
             f"用户明确要求的餐饮：{meal_plan}（餐饮站点数量必须恰好为{len(meal_plan)}个）"
             if meal_plan else
             "用户未指定具体餐次，餐饮站点不超过总站数的40%"
         )
+        pref_note = ""
+        if food_pref:
+            pref_note += f"- 餐饮偏好：{food_pref}，优先选 sub_category 最接近的；数据库无完全匹配时选评分最高的餐饮\n"
+        if culture_pref:
+            pref_note += f"- 文化偏好：{culture_pref}，优先选 sub_category 最接近的；数据库无完全匹配时选评分最高的文化/娱乐\n"
 
         user_msg = (
             f"用户意图：{json.dumps(user_intent, ensure_ascii=False)}\n\n"
             f"时间预算：{duration_hours}小时，参考站数{max_pois}站\n"
-            f"餐饮约束：{meal_note}\n\n"
-            f"候选POI（已按地理聚合过滤）：\n"
+            f"餐饮安排：{meal_note}\n"
+            + (f"偏好参考（尽量满足，无匹配时选最近似）：\n{pref_note}" if pref_note else "")
+            + f"\n候选POI（已按地理聚合过滤，偏好匹配的已排前）：\n"
             f"{json.dumps(compact_candidates, ensure_ascii=False, indent=2)}\n\n"
             "请选出最优路线，只输出JSON数组。"
         )
@@ -132,16 +141,19 @@ class RouteNode(BaseNode):
 
         selection = call_llm(messages, parse_json=True)
 
-        # Enrich selection with category info for validation
+        # Build poi_lookup for validation and category enrichment
         poi_lookup = {p["id"]: p for pois in candidates.values() for p in pois}
         for item in selection:
             if "category" not in item:
                 poi = poi_lookup.get(item.get("poi_id", ""), {})
                 item["category"] = poi.get("category", "")
 
+        updates = list(state.get("stream_updates", []))
+
         # Self-check: validate and retry once if needed
-        error = _validate(selection, intent)
+        error = _validate(selection, intent, poi_lookup)
         if error:
+            updates.append(f"⚠️ 自检发现问题：{error}，正在重新规划…")
             correction_msg = {
                 "role": "assistant",
                 "content": json.dumps(selection, ensure_ascii=False),
@@ -151,13 +163,13 @@ class RouteNode(BaseNode):
                 "content": _CORRECTION_PROMPT.format(reason=error),
             }
             selection = call_llm(messages + [correction_msg, retry_msg], parse_json=True)
-            # Re-enrich after retry
             for item in selection:
                 if "category" not in item:
                     poi = poi_lookup.get(item.get("poi_id", ""), {})
                     item["category"] = poi.get("category", "")
+        else:
+            updates.append("✅ 路线自检通过")
 
-        updates = list(state.get("stream_updates", []))
         updates.append(f"路线生成完成，共{len(selection)}个地点")
 
         return {**state, "route": selection, "stream_updates": updates}
