@@ -19,7 +19,7 @@
 - **多约束路线规划**：综合考虑预算、排队时长、营业时间、地理相邻性
 - **团购信息整合**：自动匹配可用团购套餐，标注折扣
 - **排队风险预警**：高峰期等位时间提示，建议最佳到店时间
-- **地图可视化**：高德静态地图打点，所有 POI 一图尽览
+- **地图可视化**：高德静态地图打点 + 真实步行路径蓝线连接，所有 POI 一图尽览
 - **一键导航**：每个 POI 附带高德导航链接，手机点击直接跳转导航 app
 - **多轮对话**：支持"换一家餐厅"、"去掉景点"等局部调整
 
@@ -135,13 +135,15 @@ ai-route-planner/
 │   │   ├── refine.py       # RefineNode：解析"换一家"意图（LLM）
 │   │   └── refine_select.py # RefineSelectNode：选最优替换 POI（纯代码）
 │   └── data/
-│       └── mock_poi.json   # Mock POI 数据库（100条，覆盖上海主要商圈）
+│       ├── poi.db          # SQLite POI 数据库（100条，覆盖上海主要商圈）
+│       └── mock_poi.json   # 原始数据源（用 scripts/migrate_to_sqlite.py 同步到 poi.db）
 ├── app/                    # FastAPI 应用
 │   ├── main.py             # 路由 + SSE 接口 + 内存缓存
 │   └── schemas.py          # Pydantic 请求/响应模型
 ├── scripts/                # 调试脚本
-│   ├── run_pipeline.py     # 完整流水线测试
-│   └── run_intent.py       # IntentAgent 单测
+│   ├── run_pipeline.py        # 完整流水线测试
+│   ├── run_intent.py          # IntentAgent 单测
+│   └── migrate_to_sqlite.py   # mock_poi.json → poi.db 迁移脚本
 ├── docs/
 │   └── ARCHITECTURE.md     # 系统架构详解
 ├── README.md
