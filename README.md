@@ -34,9 +34,10 @@
 
 ```
 用户输入
-  → IntentAgent      LLM①：自然语言 → 结构化意图 JSON
+  → IntentAgent      LLM①：自然语言 → 结构化意图 JSON（含 duration_hours）
   → POISearchAgent   纯代码：从 SQLite 数据库按城市/商圈/类别召回 Top-10 候选
-  → RouteAgent       LLM②：从候选中选出最优 3-5 站路线
+  → GeoClusterNode   纯代码：地理聚合过滤离群POI + 根据时间算 max_pois
+  → RouteAgent       LLM②：从候选中选出最优路线（max_pois 为参考，±1站弹性）
   → EnrichAgent      纯代码：补充团购/排队/趋势字段
   → OutputAgent      纯代码：步行路径、导航链接、地图 URL、摘要
 ```
@@ -242,6 +243,7 @@ ai-route-planner/
 │   ├── nodes/
 │   │   ├── intent.py          # IntentAgent：意图解析（LLM）
 │   │   ├── poi_search.py      # POISearchAgent：候选召回（SQLite 查询）
+│   │   ├── geo_cluster.py     # GeoClusterNode：地理聚合 + 时间约束（纯代码）
 │   │   ├── route.py           # RouteAgent：路线规划（LLM）
 │   │   ├── enrich.py          # EnrichAgent：数据补充（纯代码）
 │   │   ├── output.py          # OutputAgent：步行路径 + 导航链接 + 地图 URL

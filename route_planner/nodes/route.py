@@ -12,18 +12,20 @@ _SYSTEM_PROMPT = """\
 {"poi_id": "poi_xxx", "order": 1, "stay_minutes": 90}
 
 规则：
-- 站点数量严格不超过 max_pois（用户时间预算决定），最少3站
+- 站点数量以 max_pois 为参考，可根据行程丰富度±1站灵活调整，但最少3站
 - 至少包含1个餐饮类和1个文化/娱乐/自然类
-- 按游览顺序排列（地理位置尽量相邻，lat/lng越近越好，减少来回折腾）
+- 按游览顺序排列（lat/lng越近越好，减少来回折腾）
 - stay_minutes参考：餐饮60-120，博物馆/景点60-90，书店/街区30-60，咖啡/奶茶20-40
-- 所有POI的stay_minutes之和不超过 duration_hours×60 的80%（留出交通时间）
-- 各POI的avg_price_per_person之和不超过budget_per_person
-- 高排队风险的地点优先安排在非高峰时段
+- 所有stay_minutes之和控制在 duration_hours×60 的75%以内（留出交通时间）
+- 预算优先用group_buy_price（团购实付价），无团购才用avg_price_per_person；总价不超budget_per_person
+- queue_minutes_peak > 30 的地点安排在开场时段或14:00前，避开晚高峰
+- half_year_sales 越高说明越热门，同等条件下优先选高销量
 - 只输出JSON数组，不要有任何额外文字或解释
 """
 
 
 def _compact(poi: dict) -> dict:
+    gb_price = poi.get("group_buy_current_price") if poi.get("has_group_buy") else None
     return {
         "poi_id": poi["id"],
         "name": poi["name"],
@@ -32,8 +34,10 @@ def _compact(poi: dict) -> dict:
         "area": poi.get("area", ""),
         "rating": poi.get("rating", 0),
         "avg_price_per_person": poi.get("avg_price_per_person", 0),
+        "group_buy_price": gb_price,           # 团购实付价，None表示无团购
         "queue_risk": poi.get("queue_risk", "低"),
-        "has_group_buy": poi.get("has_group_buy", False),
+        "queue_minutes_peak": poi.get("queue_minutes_peak", 0),  # 高峰等位分钟数
+        "half_year_sales": poi.get("half_year_sales", 0),        # 销量，反映热门程度
         "business_hours": poi.get("business_hours", ""),
         "lat": poi.get("lat", 0),
         "lng": poi.get("lng", 0),

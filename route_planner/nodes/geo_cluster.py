@@ -5,7 +5,7 @@ from route_planner.node import BaseNode
 from route_planner.state import RouteState
 
 # Average minutes per stop (stay + transit to next)
-_AVG_MINUTES_PER_STOP = 75
+_AVG_MINUTES_PER_STOP = 65
 # Max radius (km) to keep POIs around centroid
 _MAX_RADIUS_KM = 3.0
 
@@ -33,7 +33,7 @@ class GeoClusterNode(BaseNode):
         duration_hours = intent.get("duration_hours", 4)
 
         # Compute max POIs based on time budget
-        max_pois = max(3, min(5, int(duration_hours * 60 / _AVG_MINUTES_PER_STOP)))
+        max_pois = max(3, min(6, int(duration_hours * 60 / _AVG_MINUTES_PER_STOP)))
 
         # Pool all candidates to find geographic center
         all_pois = [p for pois in candidates.values() for p in pois]

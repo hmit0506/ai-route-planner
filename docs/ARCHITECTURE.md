@@ -23,17 +23,22 @@
         │
         ▼
   ┌─────────────┐
-  │ IntentAgent │  LLM调用①：自然语言 → 结构化意图 JSON
+  │ IntentAgent │  LLM调用①：自然语言 → 结构化意图 JSON（含 duration_hours）
   └──────┬──────┘
-         │ intent: {city, area, budget, food_pref, ...}
+         │ intent: {city, area, budget, duration_hours, food_pref, ...}
          ▼
   ┌──────────────────┐
   │ POISearchAgent   │  纯代码：从 SQLite (poi.db) 按条件召回候选
   └────────┬─────────┘
            │ candidates: {"餐饮": [...10个], "文化": [...8个]}
            ▼
+  ┌──────────────────┐
+  │ GeoClusterNode   │  纯代码：地理聚合过滤离群POI + 根据时间算 max_pois
+  └────────┬─────────┘
+           │ candidates（已过滤）+ intent.max_pois
+           ▼
   ┌─────────────┐
-  │  RouteAgent │  LLM调用②：从候选中选出最优 3-5 站
+  │  RouteAgent │  LLM调用②：从候选中选出最优路线（max_pois 为参考，±1站弹性）
   └──────┬──────┘
          │ route: [{poi_id, order, stay_minutes}, ...]
          ▼
@@ -162,10 +167,18 @@ class RouteState(TypedDict):
 
 **为什么用 LLM**：需要综合判断地理相邻性、软约束匹配、时间窗口合理性、排队避峰。
 
-**Prompt 策略**：
-- 传入 compact 版候选（省略不必要字段，节省 token）
-- 明确约束：≥1 餐饮 + ≥1 文化/娱乐；地理相邻；总价格不超预算
-- 要求输出只含 `poi_id / order / stay_minutes`
+**传入候选字段**（compact 版，省略冗余字段）：
+
+| 字段 | 决策用途 |
+|---|---|
+| `avg_price_per_person` | 预算核算基准 |
+| `group_buy_price` | 有团购时的实付价（比均价更准确） |
+| `queue_risk` + `queue_minutes_peak` | 排队风险 + 具体等位分钟数，用于安排到店时段 |
+| `half_year_sales` | 热门程度，同等条件下优先高销量 |
+| `lat/lng` | 地理相邻性判断 |
+| `business_hours` | 营业时间约束 |
+
+**站点数量策略**：以 GeoClusterNode 计算的 `max_pois` 为参考，LLM 可根据行程丰富度 ±1 站灵活调整，最少 3 站（赛题硬性要求）。
 
 **输出示例**：
 ```json
@@ -214,6 +227,22 @@ class RouteState(TypedDict):
 ### 4.6 RefineNode + RefineSelectNode
 
 **职责**：处理多轮对话中的局部替换请求（"换一家"、"换掉第二个"）。
+
+### 4.3.5 GeoClusterNode（纯代码，介于 POISearch 和 Route 之间）
+
+**职责**：地理聚合 + 时间预算约束，给 RouteAgent 提供更干净的候选集。
+
+**逻辑**：
+1. 合并所有类别候选，计算地理中心（所有 POI 经纬度均值）
+2. 过滤掉距中心 > 3km 的离群 POI（防止选出跨区域组合）；若某类剩余 < 3 个则回退保留原始候选
+3. 根据 `duration_hours` 计算 `max_pois`：`max(3, min(6, floor(duration_hours × 60 / 65)))`
+4. 将 `max_pois` 写入 intent，RouteAgent 以此为参考（可 ±1 站弹性调整）
+
+**无 LLM 调用**，耗时 < 1ms。
+
+---
+
+### 4.6 RefineNode + RefineSelectNode
 
 **RefineNode（LLM）**：
 - 输入：用户话语 + 当前路线 JSON
