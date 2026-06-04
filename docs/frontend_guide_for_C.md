@@ -18,7 +18,7 @@
 把后端地址存为一个变量，方便切换：
 
 ```javascript
-const API_BASE = 'https://xxxx.ngrok-free.app';  // 替换为实际地址
+const API_BASE = 'https://ai-route-planner-production.up.railway.app';
 ```
 
 ### 1.2 高德 JS API Key
