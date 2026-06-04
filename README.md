@@ -26,7 +26,9 @@
 - **静态地图**：高德静态地图打点 + 真实步行路径蓝线（后端生成图片 URL）
 - **动态地图**：前端嵌入高德 JS SDK，可缩放交互，点击 POI 弹出详情
 - **一键导航**：每个 POI 附带高德导航链接，手机点击直接跳转导航 App
-- **多轮对话**：支持"换一家不排队的餐厅"等局部调整，仅 1 次 LLM 调用
+- **精确餐次规划**：提取用户明确说明的用餐需求（`meal_plan`），RouteAgent 按需安排对应数量的餐饮站点，多一个不行，少一个也不行
+- **自我检查**：RouteAgent 输出后代码验证合理性，不通过则携带纠正说明重试一次
+- **多轮对话**：支持"换一家不排队的餐厅"等局部调整，1 次 LLM 调用；替换时从现有路线提取地理上下文，保证替换结果在同一区域内
 
 ---
 
@@ -270,9 +272,12 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] RefineAgent 局部替换（RefineNode LLM + RefineSelectNode 纯代码，1次 LLM 调用）
 - [x] 步行路径蓝线（高德 Walking Directions API）+ 一键导航链接 + 动态地图坐标字段
 - [x] Railway 部署上线，自动 HTTPS，push 即部署
-- [x] GeoClusterNode：地理聚合 + 时间感知站点数 + 类别配比约束
-- [x] IntentNode CoT 推理可见 + 代码层自动校验修正
-- [x] RouteAgent 决策维度增强（性价比、非峰等位、口味评分、评价数可信度）
+- [x] GeoClusterNode：地理聚合 + 时间感知站点数（去掉硬性类别配比，交给 LLM 决策）
+- [x] IntentNode：CoT 推理可见 + 代码层自动校验 + meal_plan 精确餐次提取
+- [x] RouteAgent：决策维度增强（性价比/非峰等位/口味评分/评价数）+ meal_plan 约束 + 自我检查重试
+- [x] POISearchNode：接入 culture_pref / avoid / 全部 food_pref 偏好字段
+- [x] RefineNode：修复多轮对话 bug（从路线 POI 提取地理上下文，设置搜索类别）
+- [x] RefineSelectNode：修复重复替换 bug（排除所有当前路线 POI）
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出、用户记忆）+ 录制 Demo
 - [ ] 文档整理 + 提交

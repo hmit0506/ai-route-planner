@@ -120,6 +120,7 @@ class RouteState(TypedDict):
 - `budget_per_person` 与 `budget_total / party_size` 偏差 > 5 元 → 修正
 - `must_include_categories` 为空 → 补 "餐饮"
 - `duration_hours >= 5` 且只有 "餐饮" → 自动追加 "文化"
+- `meal_plan` 非列表 → 修正为 `[]`
 
 **输出示例**：
 ```json
@@ -129,6 +130,9 @@ class RouteState(TypedDict):
   "duration_hours": 12,
   "budget_total": 300, "budget_per_person": 150, "party_size": 2,
   "food_pref": ["本帮菜"],
+  "culture_pref": ["历史建筑"],
+  "avoid": [],
+  "meal_plan": ["午饭", "晚饭"],
   "must_include_categories": ["餐饮", "文化"]
 }
 ```
@@ -144,9 +148,10 @@ class RouteState(TypedDict):
 **召回策略**：
 1. `city LIKE ?` + `area LIKE ?` 模糊匹配
 2. `avg_price_per_person <= budget_per_person × 1.2`（20% 弹性，避免过度截断）
-3. 餐饮类：`food_pref` 匹配 `sub_category` 的 POI 排前
-4. 按 `rating DESC`，每类取 Top-10
-5. Fallback：若命中 < 3 个，退化为仅 city 过滤
+3. `avoid` 中的子类别通过 `sub_category NOT IN (...)` 过滤排除
+4. 偏好排序：餐饮类用 `food_pref`（全部项），文化/娱乐类用 `culture_pref`，匹配 `sub_category` 的 POI 优先
+5. 按 `rating DESC`，每类取 Top-10
+6. Fallback：若命中 < 3 个，退化为仅 city 过滤（放宽商圈限制）
 
 ---
 
@@ -158,19 +163,11 @@ class RouteState(TypedDict):
 1. 合并所有类别候选，计算地理质心（lat/lng 均值）
 2. 过滤掉距质心 > 3km 的 POI（防止选出跨区域组合）；若某类剩余 < 3 个则回退保留原始候选
 3. 计算 `max_pois = max(3, min(8, floor(duration_hours × 60 / 65)))`
-4. 将 `max_pois` 写入 intent，传递给 RouteNode
+4. 将 `max_pois` 写入 intent，传递给 RouteNode 作为参考
 
-**同时计算类别配比约束**：
+**注意**：GeoClusterNode 只做地理和时间的约束，**不做类别配比**。餐饮数量和文化/娱乐数量由 RouteAgent 根据 `meal_plan` 自主决定，避免硬性规则覆盖用户的真实意图。
 
-| 行程时长 | 餐饮上限（max_dining） | 文化/娱乐下限（min_cultural） |
-|---|---|---|
-| < 5 小时 | max_pois - 1 | 1 |
-| 5–7 小时 | 2 | max_pois - 2 |
-| ≥ 8 小时 | 2（午饭+晚饭） | max_pois - 3 |
-
-这两个参数传给 RouteNode，避免全天行程只选餐厅的问题。
-
-**为什么需要**：RouteNode 在选站时不知道真实交通时间，依赖 LLM 对坐标的直觉估算。GeoClusterNode 提前过滤离群 POI、计算合理配比，从根本上约束 LLM 的选择空间。
+**为什么需要**：RouteNode 不知道真实交通时间，依赖 LLM 对坐标的直觉估算。GeoClusterNode 提前过滤离群 POI，从根本上避免"选了两头跑"的路线。
 
 ---
 
@@ -191,7 +188,15 @@ class RouteState(TypedDict):
 | `business_hours` | 营业时间硬约束 |
 | `lat/lng` | 地理相邻性判断 |
 
-**站点数量**：以 `max_pois` 为参考，可 ±1 站弹性调整，最少 3 站（赛题硬性要求）。
+**餐饮数量决策**：
+- 若 `meal_plan` 有值（如 `["午饭","晚饭"]`）→ 餐饮站点数量必须与 `meal_plan` 长度一致
+- 若 `meal_plan` 为空 → 餐饮站点不超过总站数的 40%，保证行程多样性
+
+**自我检查机制**：LLM 输出后，代码验证餐饮数量是否符合 `meal_plan`，是否满足最低多样性要求。若不通过，携带纠正说明触发一次重试（最多 1 次）。
+
+**intent 传递**：只传用户原始意图字段，剔除 GeoCluster 内部字段（`max_pois` 等），避免污染 LLM 的上下文理解。
+
+**站点数量**：以 `max_pois` 为参考，可弹性调整，最少 3 站（赛题硬性要求）。
 
 **输出**（最精简骨架，节省 token）：
 ```json
@@ -216,6 +221,8 @@ class RouteState(TypedDict):
 
 多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
+EnrichNode 输出的每个 POI 包含 `city` 和 `area` 字段，供 RefineNode 提取地理上下文使用。
+
 ---
 
 ### 4.6 OutputNode（纯代码）
@@ -239,11 +246,13 @@ class RouteState(TypedDict):
 **RefineNode（LLM）**：
 - 输入：用户话语 + 当前路线摘要（name/category/rating/queue_risk/price）
 - 解析：要替换的节点编号、替换类别、新约束（queue_risk 上限、max_price、avoid_sub_category）
-- 写入 `intent["_refine"]`，设置 `locked_nodes`
+- 从现有路线 POI 中提取 `city`/`area`（EnrichNode 已写入这两个字段），推算预算上限
+- 写入 `intent["_refine"]` + `intent["must_include_categories"]`（仅含被替换类别），让 POISearchNode 只搜目标类别
+- 设置 `locked_nodes`
 
 **RefineSelectNode（纯代码）**：
-- 从候选中过滤掉已在路线中的 POI 和不满足 new_constraints 的 POI
-- 选评分最高者插入原路线对应位置
+- 候选池排除**所有当前路线中的 POI**（包括被替换的，避免"替换"回原来那家）
+- 按 new_constraints 过滤后选评分最高者
 - 若无符合条件的替换，保留原 POI 并提示
 
 ---
@@ -273,7 +282,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 | 手段 | 效果 |
 |---|---|
-| LLM 仅调用 2 次 | 减少最大延迟来源 |
+| LLM 通常调用 2 次（IntentNode + RouteNode） | 减少最大延迟来源；RouteNode 自检失败时触发 1 次重试，最坏 3 次 |
 | GeoClusterNode 纯代码 | < 1ms |
 | POISearchNode SQLite 查询 | < 5ms |
 | EnrichNode / OutputNode 纯代码 | < 50ms（不含高德步行 API） |
