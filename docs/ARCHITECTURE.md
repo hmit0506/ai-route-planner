@@ -312,6 +312,8 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 ## 九、FastAPI 接口
 
+### 接口列表
+
 ```
 POST /route/generate   首次生成路线（SSE 流式）
 POST /route/refine     局部替换（SSE 流式）
@@ -323,15 +325,84 @@ GET  /health           健康检查
 ```
 event: step    → {"message": "已解析需求：上海外滩，预算300元"}
 event: step    → {"message": "找到候选POI：餐饮10个、文化8个"}
-event: result  → {完整路线 JSON}
+event: step    → {"message": "路线生成完成，共3个地点"}
+event: result  → {完整路线 JSON，见下方}
 event: done    → {}
 event: error   → {"message": "错误信息"}
 ```
+
+### result 事件完整结构
+
+```json
+{
+  "route": [
+    {
+      "order": 1,
+      "name": "外婆家（南京西路店）",
+      "category": "餐饮",
+      "address": "南京西路1038号",
+      "lat": 31.2245,
+      "lng": 121.4491,
+      "rating": 4.8,
+      "avg_price_per_person": 128,
+      "queue_risk": "高",
+      "queue_risk_tip": "晚高峰等位约40分钟，建议17:30前到店",
+      "has_group_buy": true,
+      "group_buy": {
+        "title": "双人尊享套餐",
+        "original_price": 380,
+        "current_price": 258,
+        "discount": "6.8折"
+      },
+      "stay_minutes": 90,
+      "transport_to_next": "步行约8分钟",
+      "transport_polyline": "121.4491,31.2245;121.4510,31.2250;...",
+      "navigation_url": "https://uri.amap.com/navigation?to=121.4491,31.2245,外婆家&mode=walk&coordinate=gaode&callnative=1",
+      "trend_tag": "火爆（已售1.2万单）"
+    }
+  ],
+  "map_url": "https://restapi.amap.com/v3/staticmap?...",
+  "summary": "为你安排了3站行程，预计游玩4小时，1处有团购优惠，餐饮消费约258元。",
+  "agent_steps": ["已解析需求：...", "找到候选POI：...", "路线生成完成"]
+}
+```
+
+**新增字段说明**（相比原始 POI 数据）：
+
+| 字段 | 来源 | 说明 |
+|---|---|---|
+| `transport_polyline` | 高德步行路径 API | `"lng,lat;lng,lat;..."` 格式，前端 JS 地图绘制蓝线用；最后一个 POI 为 null |
+| `navigation_url` | OutputAgent 生成 | 高德 URI Scheme，手机点击跳转导航 App |
+| `queue_risk_tip` | EnrichAgent 生成 | 人性化的排队提示文字 |
+| `group_buy.discount` | EnrichAgent 计算 | 折扣率，如"6.8折" |
+| `trend_tag` | EnrichAgent 生成 | 含销量数字，如"火爆（已售1.2万单）" |
 
 ---
 
 ## 十、部署
 
-- **开发阶段**：本地 uvicorn + ngrok 暴露 HTTPS（NoCode 前端要求 HTTPS）
-- **生产阶段**：Railway 或 Render（免费套餐，自带 HTTPS 域名）
-- **注意**：NoCode 页面托管在 HTTPS 域名下，后端必须也是 HTTPS，否则浏览器拒绝混合内容请求
+### 当前线上环境
+
+**Railway**（已上线）：`https://ai-route-planner-production.up.railway.app`
+
+- push 到 main 分支自动触发重新部署
+- API Key 在 Railway 控制台 Variables 面板填写，不进代码
+- 启动时自动执行 `migrate_to_sqlite.py` 生成 `poi.db`
+
+### 本地开发
+
+```bash
+bash setup.sh
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### HTTPS 要求
+
+NoCode 前端页面托管在 HTTPS 域名下，后端必须也是 HTTPS，否则浏览器拒绝混合内容请求（Mixed Content）。Railway 自带 HTTPS，本地开发可用 ngrok 临时暴露。
+
+### 高德 API Key 说明
+
+| Key 类型 | 用途 | 配置位置 |
+|---|---|---|
+| Web 服务 Key | 静态地图图片、步行路径规划（服务器 HTTP 调用） | Railway Variables / 本地 `.env` |
+| Web 端 JS Key | 前端动态交互地图（浏览器加载 SDK） | 前端 HTML 代码中，绑定域名 `*.nocode.host` |
