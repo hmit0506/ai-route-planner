@@ -1,15 +1,15 @@
 """
-Migrate mock_poi.json → route_planner/data/poi.db
+Migrate poi.csv → route_planner/data/poi.db
 
 Usage:
     python scripts/migrate_to_sqlite.py
 """
-import json
+import csv
 import os
 import sqlite3
 
-JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "route_planner", "data", "mock_poi.json")
-DB_PATH   = os.path.join(os.path.dirname(__file__), "..", "route_planner", "data", "poi.db")
+CSV_PATH = os.path.join(os.path.dirname(__file__), "..", "route_planner", "data", "poi.csv")
+DB_PATH  = os.path.join(os.path.dirname(__file__), "..", "route_planner", "data", "poi.db")
 
 CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS pois (
@@ -54,9 +54,26 @@ FIELDS = [
     "business_hours", "trend_tag", "recommend_count",
 ]
 
+REAL_FIELDS = {"lat", "lng", "rating", "taste_rating", "decor_rating", "service_rating",
+               "hygiene_rating", "value_rating", "avg_price_per_person",
+               "group_buy_original_price", "group_buy_current_price"}
+INT_FIELDS  = {"review_count", "half_year_sales", "queue_minutes_peak",
+               "queue_minutes_offpeak", "has_group_buy", "recommend_count"}
+
+
+def _cast(field, value):
+    if value == "":
+        return None
+    if field in REAL_FIELDS:
+        return float(value)
+    if field in INT_FIELDS:
+        return int(value)
+    return value
+
+
 def migrate():
-    with open(JSON_PATH, encoding="utf-8") as f:
-        pois = json.load(f)
+    with open(CSV_PATH, encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
 
     conn = sqlite3.connect(DB_PATH)
     conn.execute(CREATE_SQL)
@@ -65,15 +82,14 @@ def migrate():
     placeholders = ", ".join("?" * len(FIELDS))
     insert_sql = f"INSERT OR REPLACE INTO pois ({', '.join(FIELDS)}) VALUES ({placeholders})"
 
-    for poi in pois:
-        values = [poi.get(field) for field in FIELDS]
-        # has_group_buy: bool → int
-        values[FIELDS.index("has_group_buy")] = int(bool(poi.get("has_group_buy", False)))
+    for row in rows:
+        values = [_cast(field, row.get(field, "")) for field in FIELDS]
         conn.execute(insert_sql, values)
 
     conn.commit()
     conn.close()
-    print(f"迁移完成：{len(pois)} 条 POI → {DB_PATH}")
+    print(f"迁移完成：{len(rows)} 条 POI → {DB_PATH}")
+
 
 if __name__ == "__main__":
     migrate()

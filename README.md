@@ -135,15 +135,15 @@ ai-route-planner/
 │   │   ├── refine.py       # RefineNode：解析"换一家"意图（LLM）
 │   │   └── refine_select.py # RefineSelectNode：选最优替换 POI（纯代码）
 │   └── data/
-│       ├── poi.db          # SQLite POI 数据库（100条，覆盖上海主要商圈）
-│       └── mock_poi.json   # 原始数据源（用 scripts/migrate_to_sqlite.py 同步到 poi.db）
+│       ├── poi.csv         # POI 数据源（100条，GitHub 可直接查看，Excel 可直接编辑）
+│       └── poi.db          # SQLite 运行时数据库（由 setup.sh 自动生成，不提交 git）
 ├── app/                    # FastAPI 应用
 │   ├── main.py             # 路由 + SSE 接口 + 内存缓存
 │   └── schemas.py          # Pydantic 请求/响应模型
 ├── scripts/                # 调试脚本
 │   ├── run_pipeline.py        # 完整流水线测试
 │   ├── run_intent.py          # IntentAgent 单测
-│   └── migrate_to_sqlite.py   # mock_poi.json → poi.db 迁移脚本
+│   └── migrate_to_sqlite.py   # poi.csv → poi.db 迁移脚本（setup.sh 自动调用）
 ├── docs/
 │   └── ARCHITECTURE.md     # 系统架构详解
 ├── README.md

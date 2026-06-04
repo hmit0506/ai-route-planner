@@ -34,6 +34,10 @@ else
     echo "    .env 已存在，跳过。"
 fi
 
+echo "==> 生成 POI 数据库 (poi.csv → poi.db)..."
+PYTHONPATH=. .venv/bin/python3 scripts/migrate_to_sqlite.py
+echo "    poi.db 生成完成。"
+
 echo ""
 echo "环境准备完成！启动服务："
 echo "    PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
