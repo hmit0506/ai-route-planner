@@ -216,11 +216,19 @@ class OutputNode(BaseNode):
                 poi["transport_polyline"] = None
 
         map_url = _build_map_url(route, polylines)
-        summary = _build_summary(route)
         fulfillment = _build_fulfillment(route, state.get("intent", {}))
+        summary = _build_summary(route)
+        if fulfillment.get("unmatched"):
+            summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
 
         updates = list(state.get("stream_updates", []))
         updates.append("路线规划完成，已生成地图链接")
+
+        # Surface fulfillment issues as visible step events
+        for msg in fulfillment.get("unmatched", []):
+            updates.append(f"⚠️ {msg}")
+        for tip in fulfillment.get("tips", []):
+            updates.append(f"💡 {tip}")
 
         return {
             **state,
