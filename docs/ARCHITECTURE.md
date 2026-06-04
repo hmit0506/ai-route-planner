@@ -16,7 +16,7 @@
 
 ## 二、整体架构
 
-### 流水线总览
+### 首次生成流水线
 
 ```
 用户自然语言输入
@@ -28,7 +28,7 @@
          │ intent: {city, area, budget, food_pref, ...}
          ▼
   ┌──────────────────┐
-  │ POISearchAgent   │  纯代码：从 POI 数据库按条件召回候选
+  │ POISearchAgent   │  纯代码：从 SQLite (poi.db) 按条件召回候选
   └────────┬─────────┘
            │ candidates: {"餐饮": [...10个], "文化": [...8个]}
            ▼
@@ -43,14 +43,39 @@
          │ route: [{name, rating, queue_risk_tip, group_buy, ...}, ...]
          ▼
   ┌─────────────┐
-  │ OutputAgent │  纯代码：计算交通时间、生成地图 URL、写摘要
+  │ OutputAgent │  纯代码：步行路径、导航链接、地图 URL、摘要
   └──────┬──────┘
          │
          ▼
-  最终路线 JSON + 高德静态地图 URL
+  最终路线 JSON（含 transport_polyline）+ 高德静态地图 URL
 ```
 
 **LLM 仅调用 2 次**，其余节点为纯 Python，整体响应 < 10 秒（配合 SSE 流式推送体感更快）。
+
+### 局部替换流水线（多轮对话）
+
+```
+用户："换一家不排队的餐厅"
+        │
+        ▼
+  ┌────────────┐
+  │ RefineNode │  LLM调用①：解析替换意图，确定要替换的节点和新约束
+  └──────┬─────┘
+         │ intent._refine: {replace_order, category, new_constraints}
+         │ locked_nodes: [其余节点索引]
+         ▼
+  ┌──────────────────┐
+  │ POISearchNode    │  纯代码：只搜被替换类别的候选
+  └────────┬─────────┘
+           ▼
+  ┌──────────────────────┐
+  │ RefineSelectNode     │  纯代码：按新约束选最优替换 POI，合并回原路线
+  └──────────┬───────────┘
+             ▼
+  EnrichNode → OutputNode
+```
+
+**局部替换仅 1 次 LLM 调用**，其余全为纯代码。
 
 ---
 
@@ -66,26 +91,26 @@ state_new = node(state_old)
 
 相比直接写串行函数调用，LangGraph 的优势：
 - **状态统一管理**：所有节点共享同一个 `RouteState`，无需手动传参
-- **条件路由**：后续支持"用户满意则结束，不满意则进 RefineAgent"等分支逻辑
+- **条件路由**：支持"用户满意则结束，不满意则进 RefineAgent"等分支逻辑
 - **可观测性**：每个节点的输入输出自动可追踪，便于调试
-- **局部重跑**：多轮对话时只需从 `RefineAgent` 开始，不重跑整条流水线
+- **局部重跑**：多轮对话时只需从 `RefineNode` 开始，不重跑整条流水线
 
 ### RouteState 状态流转
 
 ```python
 class RouteState(TypedDict):
     user_input: str               # 不变，原始输入
-    intent: dict                  # IntentAgent 写入
+    intent: dict                  # IntentAgent 写入；_refine 子键由 RefineNode 写入
     candidates: dict              # POISearchAgent 写入
     route: list                   # RouteAgent 写入初版，Enrich/Output 逐步丰富
     locked_nodes: list            # 多轮对话用：用户满意不替换的节点索引
-    map_url: str                  # OutputAgent 写入
+    map_url: str                  # OutputAgent 写入（高德静态地图 URL）
     summary: str                  # OutputAgent 写入
     conversation_history: list    # 跨轮保留
     stream_updates: list          # 每个节点追加一条，用于 SSE 推送
 ```
 
-每个节点只负责写自己关心的字段，其余字段透传（`{**state, "xxx": new_value}`）。`stream_updates` 是一个追加列表，FastAPI 层可以实时 diff 并推送新增条目。
+每个节点只负责写自己关心的字段，其余字段透传（`{**state, "xxx": new_value}`）。
 
 ---
 
@@ -95,7 +120,7 @@ class RouteState(TypedDict):
 
 **职责**：将自由格式自然语言映射为固定 Schema 的结构化 JSON。
 
-**为什么用 LLM**：用户输入极度多样——"两个人，想吃辣的，不超过200"、"带娃逛上海，全家出行"、"就外滩附近随便逛逛"——规则解析无法覆盖长尾表达。
+**为什么用 LLM**：用户输入极度多样——"两个人，想吃辣的，不超过200"、"带娃逛上海，全家出行"——规则解析无法覆盖长尾表达。
 
 **Prompt 策略**：
 - System prompt 给出完整 JSON Schema，包含字段类型和默认值规则
@@ -117,19 +142,17 @@ class RouteState(TypedDict):
 
 ### 4.2 POISearchAgent
 
-**职责**：纯代码，从 POI 数据库召回每个类别的 Top-10 候选。
+**职责**：纯代码，从 SQLite 数据库（`route_planner/data/poi.db`）召回每个类别的 Top-10 候选。
 
-**为什么不用 LLM**：POI 搜索是纯数据过滤排序，无歧义，用 LLM 既慢又贵。
+**数据源**：`poi.csv`（提交到 git，GitHub 可直接查看）→ 启动时由 `setup.sh` 迁移为 `poi.db`（不提交 git）。成员 B 维护数据只需编辑 CSV，重新运行迁移脚本即可。
 
 **召回策略（按优先级）**：
 
-1. **地理过滤**：city 精确匹配 + area 模糊子串匹配（`"外滩" in poi["area"]`）
-2. **Fallback**：若命中 < 5 个，退化为仅过滤 city，扩大范围
+1. **地理过滤**：city 精确匹配 + area 模糊子串匹配
+2. **Fallback**：若命中 < 3 个，退化为仅过滤 city，扩大范围
 3. **偏好提升**：餐饮类中，`food_pref` 匹配 `sub_category` 的 POI 排在前面
-4. **预算软过滤**：`avg_price_per_person <= budget_per_person × 1.2`（允许 20% 弹性，避免过度截断）
+4. **预算软过滤**：`avg_price_per_person <= budget_per_person × 1.2`
 5. **按评分降序**，每类取 Top-10 传给 RouteAgent
-
-**设计取舍**：软预算而非硬截断，是因为高质量低客单价 POI 可能很少，硬截断会让 LLM 无法选出好路线。
 
 ---
 
@@ -137,24 +160,19 @@ class RouteState(TypedDict):
 
 **职责**：LLM 在候选集中做多约束最优选择，返回 POI ID 列表 + 停留时间。
 
-**为什么用 LLM**：这一步需要综合判断：
-- 地理相邻性（LLM 可通过 lat/lng 估算，也能用常识推断"豫园和南京路很近"）
-- 软约束匹配（"文艺气息"对应 M50 而非城隍庙）
-- 时间窗口合理性（博物馆关门时间是否来得及）
-- 排队避峰（高排队风险的餐厅建议午市而非晚高峰）
+**为什么用 LLM**：需要综合判断地理相邻性、软约束匹配、时间窗口合理性、排队避峰。
 
 **Prompt 策略**：
 - 传入 compact 版候选（省略不必要字段，节省 token）
 - 明确约束：≥1 餐饮 + ≥1 文化/娱乐；地理相邻；总价格不超预算
-- 要求输出只含 `poi_id / order / stay_minutes`，不输出解释
+- 要求输出只含 `poi_id / order / stay_minutes`
 
 **输出示例**：
 ```json
 [
   {"poi_id": "poi_005", "order": 1, "stay_minutes": 30},
   {"poi_id": "poi_013", "order": 2, "stay_minutes": 90},
-  {"poi_id": "poi_084", "order": 3, "stay_minutes": 90},
-  {"poi_id": "poi_045", "order": 4, "stay_minutes": 45}
+  {"poi_id": "poi_084", "order": 3, "stay_minutes": 90}
 ]
 ```
 
@@ -169,33 +187,43 @@ class RouteState(TypedDict):
 | 字段 | 计算方式 |
 |---|---|
 | `queue_risk_tip` | 高风险 → "晚高峰等位约N分钟，建议提前到店"；中 → "高峰期约N分钟"；低 → "基本无需等位" |
-| `group_buy.discount` | `current_price / original_price × 10`，保留1位小数，格式"6.8折" |
+| `group_buy.discount` | `current_price / original_price × 10`，格式"6.8折" |
 | `trend_tag` | 销量 ≥ 1万 → "火爆（已售1.2万单）"；否则拼接实际数字 |
 
 ---
 
 ### 4.5 OutputAgent
 
-**职责**：纯代码，补全最终展示字段，生成地图 URL 和文字摘要。
+**职责**：纯代码，补全最终展示字段，生成地图相关数据和文字摘要。
 
-**交通时间估算**（Haversine 球面距离）：
+**新增字段（每个 POI）**：
 
-```
-距离 ≤ 1.5 km  → 步行约N分钟（15分钟/km）
-距离 ≤ 5.0 km  → 骑行/打车约N分钟（4分钟/km）
-距离 > 5.0 km  → 打车约N分钟（3分钟/km）
-```
+| 字段 | 来源 |
+|---|---|
+| `transport_to_next` | Haversine 距离估算（≤1.5km步行，≤5km骑行，>5km打车） |
+| `transport_polyline` | 高德步行路径规划 API，格式 `"lng,lat;lng,lat;..."`，供前端 JS 地图绘制蓝线；最后一个 POI 为 null |
+| `navigation_url` | 高德导航 URI Scheme，手机点击直接跳转导航 App |
 
-**高德静态地图 URL 构造**：
+**地图 URL 构造**：调用高德静态地图 API，同时包含：
+- `markers=`：每个 POI 的标记点（A/B/C...）
+- `paths=`：步行路径蓝线（weight:4;color:0x0065FF）
+- 若步行 API 超时/失败，优雅降级为仅标记点
 
-```
-https://restapi.amap.com/v3/staticmap
-  ?location={中心点经纬度}    ← 所有 POI 的经纬度均值
-  &zoom=14
-  &size=750*400
-  &markers=mid,,A:{lng1},{lat1}|mid,,B:{lng2},{lat2}|...
-  &key={AMAP_API_KEY}
-```
+---
+
+### 4.6 RefineNode + RefineSelectNode
+
+**职责**：处理多轮对话中的局部替换请求（"换一家"、"换掉第二个"）。
+
+**RefineNode（LLM）**：
+- 输入：用户话语 + 当前路线 JSON
+- 解析出：要替换的节点编号、替换类别、新约束（如 `queue_risk != "高"`）
+- 写入 `intent["_refine"]`，设置 `locked_nodes`
+
+**RefineSelectNode（纯代码）**：
+- 从 POISearchNode 召回的候选中，按新约束过滤
+- 选评分最高的替换 POI
+- 将替换结果合并回原路线，locked_nodes 对应位置保持不变
 
 ---
 
@@ -213,13 +241,13 @@ call_llm(messages)
   └─ 3次全失败 → 自动切换 Claude Sonnet 4.6
 ```
 
-**选择 DeepSeek 作为主力**的原因：成本低（约为 GPT-4 的 1/20）、中文理解强、OpenAI 兼容格式便于切换。
+**DeepSeek**：成本低（约为 GPT-4 的 1/20）、中文理解强、OpenAI 兼容格式。
 
-**选择 Claude 作为 Fallback**的原因：稳定性高、JSON 输出格式遵循性好，作为最后保障。
+**Claude Fallback**：稳定性高、JSON 格式遵循性好，作为最后保障。
 
 ### JSON 解析容错
 
-LLM 有时会输出 Markdown 代码块（` ```json ... ``` `），`_extract_json` 函数用正则剥离 fence 后再解析，避免因格式问题导致整条流水线崩溃。
+LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json` 函数用正则剥离 fence 后再解析，避免整条流水线崩溃。
 
 ---
 
@@ -228,44 +256,45 @@ LLM 有时会输出 Markdown 代码块（` ```json ... ``` `），`_extract_json
 | 手段 | 效果 |
 |---|---|
 | LLM 调用仅 2 次 | 减少最大延迟来源 |
-| POI 搜索纯代码 | < 5ms |
-| SSE 流式推送 | 每完成一个节点立即推送进度，用户体感"秒开" |
-| 路线缓存（待实现） | 相同城市+商圈+预算区间命中缓存 < 1 秒 |
-| 餐饮/文化 POI 并行搜索（可选） | IntentAgent 完成后两类并发搜索 |
+| POI 搜索纯代码（SQLite） | < 5ms |
+| SSE 流式推送 | 每完成一个节点立即推进度，用户体感"秒开" |
+| 路线缓存（已实现） | 相同城市+商圈+预算区间命中缓存 < 1 秒 |
 
 ---
 
-## 七、多轮对话与局部替换
+## 七、地图方案
 
-### 问题
+### 静态地图（后端生成）
 
-用户说"把第二个换掉"时，不应重新跑整条流水线（慢且浪费），而应只替换指定节点。
+调用高德静态地图 REST API，返回 PNG 图片 URL：
+- 标记点：每个 POI 用字母（A/B/C）标注
+- 步行路径：蓝色折线（真实路径，非直线）
+- 使用 **Web 服务 Key**（服务器端 HTTP 调用）
 
-### 设计方案
+### 动态地图（前端渲染）
 
-```
-用户："换一家餐厅，不要排队的"
-        │
-        ▼
-  ┌─────────────┐
-  │ RefineAgent │  LLM调用①：理解替换意图，确定要替换的节点索引
-  └──────┬──────┘
-         │ locked_nodes = [1, 3]（其余节点保持不变）
-         ▼
-  POISearchAgent（只搜索被替换类别）
-         ▼
-  RouteAgent（在 locked_nodes 约束下重选）
-         ▼
-  EnrichAgent → OutputAgent
-```
+前端使用高德 JS SDK 2.0，基于后端返回的坐标数据渲染交互式地图：
+- 可缩放/平移
+- 点击 POI 弹窗（评分、团购、导航按钮）
+- 步行路径蓝线（使用 `transport_polyline` 字段）
+- 使用 **Web 端 JS API Key**（浏览器端 SDK 加载，与 Web 服务 Key 不同，需单独申请）
 
-`locked_nodes` 字段记录用户满意不替换的 POI 索引，传入 RouteAgent 后在 Prompt 中明确告知"以下节点已锁定，只替换其余位置"。
+详见 [前端接入指南](./frontend_guide_for_C.md)。
 
 ---
 
 ## 八、数据层设计
 
-### Mock POI 数据库（100条）
+### POI 数据管理
+
+| 文件 | 用途 | 是否提交 git |
+|---|---|---|
+| `route_planner/data/poi.csv` | 数据源，人工维护，GitHub 可直接查看 | ✅ 是 |
+| `route_planner/data/poi.db` | SQLite 运行时数据库，由 `setup.sh` 自动从 CSV 生成 | ❌ 否 |
+
+**维护流程**：编辑 `poi.csv` → 提交 git → 队友 `git pull` 后重新运行 `bash setup.sh` 即可。
+
+### POI 字段说明（25+ 字段）
 
 覆盖上海主要商圈（外滩、南京路、新天地、淮海路、静安、陆家嘴、徐汇等），五大类别：
 
@@ -277,4 +306,32 @@ LLM 有时会输出 Markdown 代码块（` ```json ... ``` `），`_extract_json
 | 自然 | ~5 | 城市公园、滨江景观 |
 | 购物 | ~5 | 商业街、艺术商场 |
 
-每条 POI 包含 25+ 字段，涵盖评分、客单价、排队数据、团购信息、销量趋势等，为 RouteAgent 提供足够的决策信息。
+每条 POI 包含评分、客单价、排队数据、团购信息、销量趋势等，为 RouteAgent 提供足够的决策信息。
+
+---
+
+## 九、FastAPI 接口
+
+```
+POST /route/generate   首次生成路线（SSE 流式）
+POST /route/refine     局部替换（SSE 流式）
+GET  /health           健康检查
+```
+
+### SSE 事件格式
+
+```
+event: step    → {"message": "已解析需求：上海外滩，预算300元"}
+event: step    → {"message": "找到候选POI：餐饮10个、文化8个"}
+event: result  → {完整路线 JSON}
+event: done    → {}
+event: error   → {"message": "错误信息"}
+```
+
+---
+
+## 十、部署
+
+- **开发阶段**：本地 uvicorn + ngrok 暴露 HTTPS（NoCode 前端要求 HTTPS）
+- **生产阶段**：Railway 或 Render（免费套餐，自带 HTTPS 域名）
+- **注意**：NoCode 页面托管在 HTTPS 域名下，后端必须也是 HTTPS，否则浏览器拒绝混合内容请求
