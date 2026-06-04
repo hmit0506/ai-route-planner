@@ -249,6 +249,12 @@ function onAmapLoaded() {
 }
 </script>
 
+<!-- 安全密钥必须在 SDK 加载前设置 -->
+<script>
+  window._AMapSecurityConfig = {
+    securityJsCode: 'YOUR_AMAP_SECURITY_CODE',  // 高德控制台 key 旁边的"安全密钥"
+  }
+</script>
 <!-- 替换 YOUR_AMAP_JS_KEY -->
 <script src="https://webapi.amap.com/maps?v=2.0&key=YOUR_AMAP_JS_KEY&callback=onAmapLoaded"></script>
 ```
