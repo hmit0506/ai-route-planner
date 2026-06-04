@@ -15,9 +15,11 @@ CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS pois (
     id                      TEXT PRIMARY KEY,
     name                    TEXT NOT NULL,
+    name_en                 TEXT,
     category                TEXT NOT NULL,
     sub_category            TEXT,
     address                 TEXT,
+    address_en              TEXT,
     city                    TEXT,
     area                    TEXT,
     lat                     REAL,
@@ -45,7 +47,7 @@ CREATE TABLE IF NOT EXISTS pois (
 """
 
 FIELDS = [
-    "id", "name", "category", "sub_category", "address", "city", "area",
+    "id", "name", "name_en", "category", "sub_category", "address", "address_en", "city", "area",
     "lat", "lng", "rating", "taste_rating", "decor_rating", "service_rating",
     "hygiene_rating", "value_rating", "review_count", "half_year_sales",
     "avg_price_per_person", "queue_risk", "queue_minutes_peak",
