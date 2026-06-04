@@ -128,8 +128,8 @@ ai-route-planner/
 │   │   └── output.py       # OutputAgent：格式化输出
 │   └── data/
 │       └── mock_poi.json   # Mock POI 数据库（100条，覆盖上海主要商圈）
-├── app/                    # FastAPI 应用（开发中）
-│   ├── main.py             # 路由 + SSE 接口
+├── app/                    # FastAPI 应用
+│   ├── main.py             # 路由 + SSE 接口 + 内存缓存
 │   └── schemas.py          # Pydantic 请求/响应模型
 ├── scripts/                # 调试脚本
 │   ├── run_pipeline.py     # 完整流水线测试
@@ -143,7 +143,15 @@ ai-route-planner/
 
 ---
 
-## API 接口（开发中）
+## 启动后端服务
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+---
+
+## API 接口
 
 ```
 POST /route/generate   # 首次生成路线（SSE 流式）
@@ -161,18 +169,28 @@ GET  /health           # 健康检查
 }
 ```
 
-### 响应格式（SSE 事件流）
+### SSE 事件流格式
 
-每完成一个 Agent 步骤立即推送进度，最后推送完整结果：
+每完成一个 Agent 步骤立即推送进度，用户边等边看；所有步骤完成后推送完整结果。
 
-```json
-{
-  "route": [...],
-  "map_url": "https://restapi.amap.com/v3/staticmap?...",
-  "summary": "为你安排了4站行程...",
-  "agent_steps": ["已解析需求...", "找到候选POI...", "路线生成完成"]
-}
 ```
+event: step
+data: {"message": "已解析需求：上海外滩，预算300元，餐饮、文化"}
+
+event: step
+data: {"message": "找到候选POI：餐饮10个、文化8个"}
+
+event: step
+data: {"message": "路线生成完成，共3个地点"}
+
+event: result
+data: {"route": [...], "map_url": "...", "summary": "...", "agent_steps": [...]}
+
+event: done
+data: {}
+```
+
+前端使用 `EventSource` 或 `fetch()` + `ReadableStream` 接收，相同请求命中缓存时直接返回结果，响应时间 < 1 秒。
 
 ---
 
@@ -190,7 +208,7 @@ AMAP_API_KEY=...               # 高德地图静态图 API（由成员B填入）
 
 - [x] 项目骨架 + IntentAgent + DeepSeek API 调通
 - [x] 完整 LangGraph 流水线，5个 Agent 全部接通，Mock POI 数据库（100条）
-- [ ] FastAPI + SSE 流式输出
+- [x] FastAPI + SSE 流式输出（/route/generate, /route/refine, /health，内存缓存）
 - [ ] RefineAgent 局部替换 + 多轮对话
 - [ ] 前后端联调
 - [ ] 优化（缓存、小红书风格输出）+ 录制 Demo
