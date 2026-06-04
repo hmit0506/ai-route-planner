@@ -31,6 +31,7 @@ _SYSTEM_PROMPT = """\
 规则：
 - budget_per_person = budget_total / party_size（四舍五入到整数）
 - 若用户未指定时间，time_range默认为 {"start": "14:00", "end": "21:00"}
+- duration_hours = time_range end 与 start 的差值（小时），若无法计算默认为 4
 - 若用户未指定人数，party_size默认为 2
 - 若用户未提到预算，budget_total默认为 200
 - must_include_categories 必须至少包含一项
@@ -48,6 +49,16 @@ class IntentNode(BaseNode):
         messages.append({"role": "user", "content": user_input})
 
         intent = call_llm(messages, parse_json=True)
+
+        # Ensure duration_hours is always populated
+        if not intent.get("duration_hours"):
+            try:
+                tr = intent.get("time_range", {})
+                sh, sm = map(int, tr["start"].split(":"))
+                eh, em = map(int, tr["end"].split(":"))
+                intent["duration_hours"] = max(1, round((eh * 60 + em - sh * 60 - sm) / 60))
+            except Exception:
+                intent["duration_hours"] = 4
 
         updates = list(state.get("stream_updates", []))
         city = intent.get("city", "")
