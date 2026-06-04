@@ -33,7 +33,7 @@ class GeoClusterNode(BaseNode):
         duration_hours = intent.get("duration_hours", 4)
 
         # Compute max POIs based on time budget
-        max_pois = max(3, min(6, int(duration_hours * 60 / _AVG_MINUTES_PER_STOP)))
+        max_pois = max(3, min(8, int(duration_hours * 60 / _AVG_MINUTES_PER_STOP)))
 
         # Pool all candidates to find geographic center
         all_pois = [p for pois in candidates.values() for p in pois]

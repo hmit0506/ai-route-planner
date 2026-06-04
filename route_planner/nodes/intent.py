@@ -35,6 +35,7 @@ _SYSTEM_PROMPT = """\
 - 若用户未指定人数，party_size默认为 2
 - 若用户未提到预算，budget_total默认为 200
 - must_include_categories 必须至少包含一项
+- 若 duration_hours >= 5 或用户提到"一整天/全天/一天"，must_include_categories 必须同时包含"餐饮"和至少一项"文化"或"娱乐"，不能只有餐饮
 """
 
 
