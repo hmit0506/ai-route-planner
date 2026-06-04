@@ -74,7 +74,26 @@ class RefineNode(BaseNode):
         refine_meta = call_llm(messages, parse_json=True)
 
         replace_order = int(refine_meta.get("replace_order", 1))
+        replace_category = refine_meta.get("category", "餐饮")
+
         intent["_refine"] = refine_meta
+
+        # Extract geographic + budget context from the existing route POIs
+        # so POISearchNode can search in the right area
+        cities = [p.get("city", "") for p in route if p.get("city")]
+        areas  = [p.get("area", "") for p in route if p.get("area")]
+        city = cities[0] if cities else ""
+        area = areas[0] if areas else ""
+
+        # Estimate budget from the route's average price
+        prices = [p.get("avg_price_per_person", 0) for p in route if p.get("avg_price_per_person")]
+        budget_pp = int(max(prices) * 1.5) if prices else 9999
+
+        intent["city"] = city
+        intent["area"] = area
+        intent["budget_per_person"] = budget_pp
+        # POISearchNode uses must_include_categories to know what to search
+        intent["must_include_categories"] = [replace_category]
 
         # locked_nodes: 0-based indices of POIs that should NOT be replaced
         locked_nodes = [
@@ -87,7 +106,7 @@ class RefineNode(BaseNode):
             (p.get("name", "") for p in route if p.get("order", 0) == replace_order),
             f"第{replace_order}个地点",
         )
-        updates.append(f"正在替换：{poi_name}")
+        updates.append(f"正在替换：{poi_name}（搜索 {city}{area} 的{replace_category}候选）")
 
         return {
             **state,

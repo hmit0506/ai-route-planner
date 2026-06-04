@@ -56,6 +56,10 @@ def _validate_and_fix(intent: dict) -> dict:
         if not any(c in cats for c in ["文化", "娱乐"]):
             intent["must_include_categories"] = cats + ["文化"]
 
+    # Ensure meal_plan is a list
+    if not isinstance(intent.get("meal_plan"), list):
+        intent["meal_plan"] = []
+
     return intent
 
 _SYSTEM_PROMPT = """\
@@ -79,8 +83,9 @@ JSON Schema：
   "party_size": 整数（出行人数，默认2）,
   "food_pref": ["菜系偏好列表"],
   "culture_pref": ["文化偏好列表，如历史建筑/博物馆/艺术"],
-  "avoid": ["要避开的类型"],
-  "must_include_categories": ["必须包含的POI类别，从餐饮/文化/娱乐/购物/自然中选"]
+  "avoid": ["要避开的类型或子类别"],
+  "must_include_categories": ["必须包含的POI类别，从餐饮/文化/娱乐/购物/自然中选"],
+  "meal_plan": ["用户明确提到的餐饮需求，如早餐/午饭/下午茶/晚饭/夜宵，未提到则为空列表"]
 }
 
 规则：
@@ -91,6 +96,7 @@ JSON Schema：
 - 若用户未提到预算，budget_total默认为 200
 - must_include_categories 必须至少包含一项
 - 若 duration_hours >= 5 或用户提到"一整天/全天/一天"，must_include_categories 必须同时包含"餐饮"和至少一项"文化"或"娱乐"，不能只有餐饮
+- meal_plan 要精确提取用户提到的每一顿饭/饮品需求，"包括午饭和晚饭"→["午饭","晚饭"]，"早中晚餐都要加咖啡"→["早餐","午饭","晚饭","咖啡"]
 """
 
 

@@ -12,7 +12,8 @@ def _query_category(
     city: str,
     area: str,
     category: str,
-    food_pref: list,
+    pref_sub_categories: list,   # food_pref for 餐饮, culture_pref for 文化
+    avoid_sub_categories: list,
     budget_pp: float,
     limit: int = 10,
 ) -> list[dict]:
@@ -23,36 +24,47 @@ def _query_category(
     area_pat = f"%{area}%" if area else "%"
     price_cap = budget_pp * 1.2
 
-    rows = conn.execute(
-        """
+    # Build preference ORDER BY: matching sub_categories sort first
+    pref_cases = " ".join(
+        f"WHEN sub_category LIKE '%{p}%' THEN {i}" for i, p in enumerate(pref_sub_categories)
+    )
+    pref_order = f"CASE {pref_cases} ELSE {len(pref_sub_categories)} END," if pref_cases else ""
+
+    # Build avoid exclusion
+    if avoid_sub_categories:
+        placeholders = ",".join("?" * len(avoid_sub_categories))
+        avoid_clause = f"AND sub_category NOT IN ({placeholders})"
+        avoid_params = avoid_sub_categories
+    else:
+        avoid_clause = ""
+        avoid_params = []
+
+    sql = f"""
         SELECT * FROM pois
         WHERE city LIKE ?
           AND area LIKE ?
           AND category = ?
           AND avg_price_per_person <= ?
-        ORDER BY
-            CASE WHEN ? != '' AND sub_category LIKE ? THEN 0 ELSE 1 END,
-            rating DESC
+          {avoid_clause}
+        ORDER BY {pref_order} rating DESC
         LIMIT ?
-        """,
-        (city_pat, area_pat, category, price_cap,
-         food_pref[0] if food_pref else "", f"%{food_pref[0]}%" if food_pref else "%",
-         limit),
-    ).fetchall()
+    """
+    params = [city_pat, area_pat, category, price_cap] + avoid_params + [limit]
+    rows = conn.execute(sql, params).fetchall()
 
-    # Fallback: city only if area returns too few results
+    # Fallback: relax area filter if too few results
     if len(rows) < 3 and area:
-        rows = conn.execute(
-            """
+        sql_fallback = f"""
             SELECT * FROM pois
             WHERE city LIKE ?
               AND category = ?
               AND avg_price_per_person <= ?
-            ORDER BY rating DESC
+              {avoid_clause}
+            ORDER BY {pref_order} rating DESC
             LIMIT ?
-            """,
-            (city_pat, category, price_cap, limit),
-        ).fetchall()
+        """
+        params_fallback = [city_pat, category, price_cap] + avoid_params + [limit]
+        rows = conn.execute(sql_fallback, params_fallback).fetchall()
 
     conn.close()
     return [dict(r) for r in rows]
@@ -61,16 +73,23 @@ def _query_category(
 class POISearchNode(BaseNode):
     def __call__(self, state: RouteState) -> Dict[str, Any]:
         intent = state["intent"]
-        city       = intent.get("city", "")
-        area       = intent.get("area", "")
-        must_cats  = intent.get("must_include_categories", [])
-        food_pref  = intent.get("food_pref", [])
-        budget_pp  = intent.get("budget_per_person", 9999)
+        city          = intent.get("city", "")
+        area          = intent.get("area", "")
+        must_cats     = intent.get("must_include_categories", [])
+        food_pref     = intent.get("food_pref", [])
+        culture_pref  = intent.get("culture_pref", [])
+        avoid         = intent.get("avoid", [])
+        budget_pp     = intent.get("budget_per_person", 9999)
 
         candidates: dict[str, list] = {}
         for cat in must_cats:
-            pref = food_pref if cat == "餐饮" else []
-            candidates[cat] = _query_category(city, area, cat, pref, budget_pp)
+            if cat == "餐饮":
+                pref = food_pref
+            elif cat in ("文化", "娱乐"):
+                pref = culture_pref
+            else:
+                pref = []
+            candidates[cat] = _query_category(city, area, cat, pref, avoid, budget_pp)
 
         updates = list(state.get("stream_updates", []))
         summary = "、".join(f"{cat}{len(v)}个" for cat, v in candidates.items())

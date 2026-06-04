@@ -65,6 +65,8 @@ class EnrichNode(BaseNode):
                 "category": poi["category"],
                 "sub_category": poi.get("sub_category", ""),
                 "address": poi["address"],
+                "city": poi.get("city", ""),
+                "area": poi.get("area", ""),
                 "lat": poi["lat"],
                 "lng": poi["lng"],
                 "rating": poi["rating"],

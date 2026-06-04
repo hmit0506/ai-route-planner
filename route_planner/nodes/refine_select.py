@@ -41,11 +41,11 @@ class RefineSelectNode(BaseNode):
         replace_order = int(refine_meta.get("replace_order", 1))
         new_constraints = refine_meta.get("new_constraints", {})
 
-        # IDs already in the locked route (to avoid picking duplicates)
+        # Exclude ALL current route POIs (both locked and the one being replaced)
+        # to ensure we always pick a genuinely new POI
         locked_ids = {
             p.get("poi_id") or p.get("id", "")
             for p in route
-            if p.get("order", 0) != replace_order
         }
 
         # Find replacement category's candidates
