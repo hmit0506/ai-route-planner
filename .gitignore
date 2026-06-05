@@ -6,3 +6,4 @@ __pycache__/
 .DS_Store
 *.egg-info/
 route_planner/data/poi.db
+route_planner/data/HK/

@@ -4,6 +4,7 @@ from typing import Dict, Any
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 from route_planner.llm import call_llm
+import route_planner.i18n as i18n
 
 _SYSTEM_PROMPT = """\
 你是一个本地路线规划助手。根据用户意图和候选POI，选出最优路线。
@@ -59,32 +60,47 @@ def _compact(poi: dict) -> dict:
     return result
 
 
-def _validate(selection: list, intent: dict, poi_lookup: dict) -> str | None:
-    """Return error string if selection violates constraints, else None."""
+_VALIDATE_MSGS = {
+    "zh-CN": {
+        "empty":       "路线为空，至少需要3个地点",
+        "too_few":     "只选了{n}站，至少需要3站",
+        "dining_mismatch": "用户明确要求{exp}个餐饮活动，但选了{got}个餐饮站点，数量不符",
+        "no_culture":  "路线全是餐饮，缺少文化/娱乐/自然类站点",
+    },
+    "zh-TW": {
+        "empty":       "路線為空，至少需要3個地點",
+        "too_few":     "只選了{n}站，至少需要3站",
+        "dining_mismatch": "用戶明確要求{exp}個餐飲活動，但選了{got}個餐飲站點，數量不符",
+        "no_culture":  "路線全是餐飲，缺少文化/娛樂/自然類站點",
+    },
+    "en": {
+        "empty":       "No stops selected, need at least 3",
+        "too_few":     "Only {n} stop(s) selected, need at least 3",
+        "dining_mismatch": "User requested {exp} dining stop(s), but {got} were selected",
+        "no_culture":  "Route is all dining, missing cultural/entertainment stops",
+    },
+}
+
+
+def _validate(selection: list, intent: dict, poi_lookup: dict, lang: str = "zh-TW") -> str | None:
+    msgs = _VALIDATE_MSGS.get(i18n.normalize(lang), _VALIDATE_MSGS["zh-TW"])
     if not selection:
-        return "路线为空，至少需要3个地点"
-
+        return msgs["empty"]
     if len(selection) < 3:
-        return f"只选了{len(selection)}站，至少需要3站"
+        return msgs["too_few"].format(n=len(selection))
 
-    categories = [s.get("category", "") for s in selection]
-    dining_count = categories.count("餐饮")
+    dining_count = sum(1 for s in selection if s.get("category") in {"餐饮", "Dining", "餐飲"})
     non_dining = len(selection) - dining_count
-
     expected_dining = intent.get("dining_count", 0)
 
     if expected_dining > 0:
         if dining_count != expected_dining:
-            return (
-                f"用户明确要求{expected_dining}个餐饮活动，"
-                f"但选了{dining_count}个餐饮站点，数量不符"
-            )
+            return msgs["dining_mismatch"].format(exp=expected_dining, got=dining_count)
     else:
-        # Only complain if non-dining candidates actually exist
         all_pois = list(poi_lookup.values())
-        has_non_dining_candidates = any(p.get("category") != "餐饮" for p in all_pois)
+        has_non_dining_candidates = any(p.get("category") not in {"餐饮", "Dining", "餐飲"} for p in all_pois)
         if non_dining == 0 and has_non_dining_candidates:
-            return "路线全是餐饮，缺少文化/娱乐/自然类站点"
+            return msgs["no_culture"]
 
     return None
 
@@ -145,12 +161,13 @@ class RouteNode(BaseNode):
                 poi = poi_lookup.get(item.get("poi_id", ""), {})
                 item["category"] = poi.get("category", "")
 
+        lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))
 
         # Self-check: validate and retry once if needed
-        error = _validate(selection, intent, poi_lookup)
+        error = _validate(selection, intent, poi_lookup, lang)
         if error:
-            updates.append(f"⚠️ 自检发现问题：{error}，正在重新规划…")
+            updates.append(i18n.step("route_warn", lang, reason=error))
             correction_msg = {
                 "role": "assistant",
                 "content": json.dumps(selection, ensure_ascii=False),
@@ -165,8 +182,8 @@ class RouteNode(BaseNode):
                     poi = poi_lookup.get(item.get("poi_id", ""), {})
                     item["category"] = poi.get("category", "")
         else:
-            updates.append("✅ 路线自检通过")
+            updates.append(i18n.step("route_ok", lang))
 
-        updates.append(f"路线生成完成，共{len(selection)}个地点")
+        updates.append(i18n.step("route_done", lang, n=len(selection)))
 
         return {**state, "route": selection, "stream_updates": updates}

@@ -205,6 +205,11 @@ _CATEGORY_EN: dict[str, str] = {
     "自然": "Nature", "购物": "Shopping",
 }
 
+_CATEGORY_TW: dict[str, str] = {
+    "餐饮": "餐飲", "娱乐": "娛樂", "购物": "購物",
+    # 文化 / 自然 are the same in both
+}
+
 _TREND_EN: dict[str, str] = {
     "火爆": "Trending", "新晋": "Rising", "经典": "Classic",
     "新晉": "Rising", "經典": "Classic",  # Traditional Chinese variants
@@ -213,12 +218,118 @@ _TREND_EN: dict[str, str] = {
 _QUEUE_RISK_EN: dict[str, str] = {"高": "High", "中": "Medium", "低": "Low"}
 
 
+# ---------------------------------------------------------------------------
+# Step messages (SSE progress updates)
+# ---------------------------------------------------------------------------
+
+_STEPS = {
+    "zh-CN": {
+        "intent_done":    "已解析需求：{city}{area}，{time}（{dur}小时），{party}人，预算{budget}元，{cats}{dining}",
+        "dining_note":    "，{n}个餐饮活动",
+        "poi_found":      "找到候选POI：{summary}",
+        "geo_done":       "地理聚合完成：中心半径{r}km，时间预算{dur}小时→参考{n}站",
+        "route_ok":       "✅ 路线自检通过",
+        "route_warn":     "⚠️ 自检发现问题：{reason}，正在重新规划…",
+        "route_done":     "路线生成完成，共{n}个地点",
+        "enrich_done":    "已补充团购/排队/趋势信息",
+        "output_done":    "路线规划完成，已生成地图链接",
+        "refine_start":   "正在替换：{name}（搜索 {city}{area} 的{cat}候选）",
+        "cache_hit":      "缓存命中，直接返回结果",
+        "intent_cache":   "意图缓存命中，直接返回结果",
+    },
+    "zh-TW": {
+        "intent_done":    "已解析需求：{city}{area}，{time}（{dur}小時），{party}人，預算{budget}元，{cats}{dining}",
+        "dining_note":    "，{n}個餐飲活動",
+        "poi_found":      "找到候選POI：{summary}",
+        "geo_done":       "地理聚合完成：中心半徑{r}km，時間預算{dur}小時→參考{n}站",
+        "route_ok":       "✅ 路線自檢通過",
+        "route_warn":     "⚠️ 自檢發現問題：{reason}，正在重新規劃…",
+        "route_done":     "路線規劃完成，共{n}個地點",
+        "enrich_done":    "已補充排隊/趨勢資訊",
+        "output_done":    "路線規劃完成，已生成地圖連結",
+        "refine_start":   "正在替換：{name}（搜索 {city}{area} 的{cat}候選）",
+        "cache_hit":      "快取命中，直接返回結果",
+        "intent_cache":   "意圖快取命中，直接返回結果",
+    },
+    "en": {
+        "intent_done":    "Parsed: {city} {area} | {time} ({dur}h) | {party} pax | budget HKD {budget} | {cats}{dining}",
+        "dining_note":    ", {n} meal occasion(s)",
+        "poi_found":      "Found candidates: {summary}",
+        "geo_done":       "Geo-cluster: radius {r}km, {dur}h → up to {n} stops",
+        "route_ok":       "✅ Route validated",
+        "route_warn":     "⚠️ Validation issue: {reason} — retrying…",
+        "route_done":     "Route ready: {n} stop(s)",
+        "enrich_done":    "Queue / trend info added",
+        "output_done":    "Route complete, map generated",
+        "refine_start":   "Replacing: {name} (searching {cat} in {city} {area})",
+        "cache_hit":      "Cache hit — returning cached result",
+        "intent_cache":   "Intent cache hit — returning cached result",
+    },
+}
+
+
+def step(key: str, lang: str = "zh-TW", **kwargs) -> str:
+    """Return a localized step message."""
+    tpl = _STEPS[normalize(lang)].get(key, key)
+    return tpl.format(**kwargs) if kwargs else tpl
+
+
+# ---------------------------------------------------------------------------
+# Simplified → Traditional post-processing (for LLM CoT reasoning)
+# Only unambiguous 1-to-1 mappings; skips 发(發/髮) 复(復/複) etc.
+# ---------------------------------------------------------------------------
+_S2T_PAIRS = {
+    "来": "來", "为": "為", "时": "時", "间": "間", "这": "這",
+    "对": "對", "应": "應", "现": "現", "经": "經", "联": "聯",
+    "观": "觀", "标": "標", "处": "處", "专": "專", "务": "務",
+    "说": "說", "问": "問", "动": "動", "传": "傳", "统": "統",
+    "点": "點", "东": "東", "爱": "愛", "试": "試", "场": "場",
+    "临": "臨", "规": "規", "则": "則", "设": "設", "计": "計",
+    "备": "備", "将": "將", "过": "過", "质": "質", "实": "實",
+    "头": "頭", "样": "樣", "没": "沒", "关": "關", "转": "轉",
+    "历": "歷", "义": "義", "该": "該", "简": "簡", "单": "單",
+    "题": "題", "结": "結", "报": "報", "网": "網", "软": "軟",
+    "环": "環", "开": "開", "测": "測", "运": "運", "买": "買",
+    "变": "變", "认": "認", "识": "識", "态": "態", "条": "條",
+    "预": "預", "际": "際", "线": "線", "边": "邊", "们": "們",
+    "话": "話", "与": "與", "饮": "飲", "荐": "薦", "体": "體",
+    "验": "驗", "习": "習", "国": "國", "产": "產", "长": "長",
+    "员": "員", "节": "節", "录": "錄", "费": "費", "值": "值",
+    "汇": "匯", "币": "幣", "岛": "島", "车": "車", "马": "馬",
+    "门": "門", "风": "風", "气": "氣", "号": "號", "书": "書",
+    "乐": "樂", "后": "後", "选": "選", "从": "從", "还": "還",
+    "给": "給", "组": "組", "团": "團", "图": "圖", "带": "帶",
+    "赶": "趕", "续": "續", "档": "檔", "级": "級", "丰": "豐",
+    "让": "讓", "户": "戶", "汉": "漢", "语": "語", "华": "華",
+    "总": "總", "别": "別", "尝": "嚐", "觉": "覺",
+    "签": "簽", "证": "證", "码": "碼", "亿": "億", "万": "萬",
+    "资": "資", "继": "繼", "线": "線",
+    "两": "兩", "确": "確", "热": "熱", "区": "區", "纯": "純",
+    "娱": "娛", "乐": "樂", "剧": "劇", "艺": "藝", "术": "術",
+    "较": "較", "难": "難", "获": "獲", "权": "權", "样": "樣",
+    "类": "類", "须": "須", "称": "稱", "显": "顯", "尽": "盡",
+    "够": "夠", "随": "隨", "择": "擇", "据": "據", "势": "勢",
+    "具": "具",  # same, but keep for safety
+    "导": "導", "释": "釋", "词": "詞", "强": "強", "张": "張",
+    "带": "帶", "档": "檔", "级": "級", "丰": "豐",
+}
+_S2T_TABLE = str.maketrans(_S2T_PAIRS)
+
+
+def to_traditional(text: str) -> str:
+    """Best-effort Simplified → Traditional conversion for display purposes."""
+    return text.translate(_S2T_TABLE)
+
+
 def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
-    """Translate a POI field value to the target language.
-    For zh-TW/zh-CN, returns the original value unchanged.
-    For 'en', looks up the appropriate English translation.
-    """
-    if normalize(lang) != "en":
+    """Translate a POI field value to the target language."""
+    lang_key = normalize(lang)
+    # zh-TW: convert Simplified-only system words to Traditional
+    if lang_key == "zh-TW":
+        if field == "category":
+            return _CATEGORY_TW.get(value, value)
+        return value
+    if lang_key != "en":
         return value
     if field == "sub_category":
         # May be compound like "日本料理、壽司" — translate each tag

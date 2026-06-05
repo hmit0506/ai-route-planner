@@ -212,7 +212,7 @@ class OutputNode(BaseNode):
             summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
 
         updates = list(state.get("stream_updates", []))
-        updates.append("路线规划完成，已生成地图链接")
+        updates.append(i18n.step("output_done", lang))
 
         # Surface fulfillment issues as visible step events
         for msg in fulfillment.get("unmatched", []):

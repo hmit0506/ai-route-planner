@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
+import route_planner.i18n as i18n
 
 _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "poi.db")
 
@@ -91,8 +92,17 @@ class POISearchNode(BaseNode):
                 pref = []
             candidates[cat] = _query_category(city, area, cat, pref, avoid, budget_pp)
 
+        lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))
-        summary = "、".join(f"{cat}{len(v)}个" for cat, v in candidates.items())
-        updates.append(f"找到候选POI：{summary}")
+        if i18n.normalize(lang) == "en":
+            summary = ", ".join(f"{len(v)} {i18n.translate_field('category', cat, lang)}" for cat, v in candidates.items())
+        elif i18n.normalize(lang) == "zh-CN":
+            summary = "、".join(f"{cat}{len(v)}个" for cat, v in candidates.items())
+        else:  # zh-TW
+            summary = "、".join(
+                f"{i18n.translate_field('category', cat, lang)}{len(v)}個"
+                for cat, v in candidates.items()
+            )
+        updates.append(i18n.step("poi_found", lang, summary=summary))
 
         return {**state, "candidates": candidates, "stream_updates": updates}

@@ -18,7 +18,7 @@
 ## 核心能力
 
 - **自然语言理解**：解析"旺角附近、预算400、想吃日本料理"等自由格式输入；CoT 推理过程可见，代码层自动校验修正
-- **三语支持**：前端传 `language` 字段（`zh-TW` / `zh-CN` / `en`），所有用户可见文字（摘要、排队提示、交通说明、类别名称、履约报告）随语言切换；POI 含双语字段（`name_en`、`address_en`）
+- **三语支持**：前端传 `language` 字段（`zh-TW` / `zh-CN` / `en`），所有用户可见文字（进度消息、摘要、排队提示、交通说明、类别名称、履约报告）随语言切换；CoT 推理行自动语言检测 + 后处理保证繁体输出；POI 含双语字段（`name_en`、`address_en`）
 - **真实 POI 数据**：18,089 家香港餐厅，来源 OpenRice 2021–2025 真实评论数据；75 个中文类别标签，88% 餐厅带多标签，LIKE 查询可命中任意标签
 - **时间感知规划**：根据行程时长自动决定站点数（3-8站）
 - **地理聚合**：过滤离群 POI，确保所有站点在合理步行/骑行范围内，避免"两头跑"
@@ -299,6 +299,8 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 真实 HK 数据集：18,089 家香港餐厅（OpenRice 2021–2025），75 个中文类别标签，双语字段
 - [x] 多标签 sub_category（88% 餐厅，LIKE 命中任意标签）+ IntentNode food_pref 词汇对齐
 - [x] 字段级翻译：sub_category / category / trend_tag / queue_risk 英文模式自动翻译
+- [x] 全链路三语一致性：所有步骤消息（IntentNode / POISearch / GeoCluster / RouteNode / EnrichNode / OutputNode）均走 i18n；CoT 推理行后处理确保繁体输出；验证错误消息三语化
+- [x] 语言自动检测：run_pipeline.py 根据输入字符集自动判断 zh-CN / zh-TW / en
 - [ ] 文化景点数据（待补充）
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo

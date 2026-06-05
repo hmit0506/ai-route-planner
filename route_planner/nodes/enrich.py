@@ -98,6 +98,6 @@ class EnrichNode(BaseNode):
         enriched.sort(key=lambda x: x["order"])
 
         updates = list(state.get("stream_updates", []))
-        updates.append("已补充团购/排队/趋势信息")
+        updates.append(i18n.step("enrich_done", lang))
 
         return {**state, "route": enriched, "stream_updates": updates}

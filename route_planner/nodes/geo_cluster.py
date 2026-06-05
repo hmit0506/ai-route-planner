@@ -3,6 +3,7 @@ from typing import Dict, Any
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
+import route_planner.i18n as i18n
 
 _AVG_MINUTES_PER_STOP = 65
 _MAX_RADIUS_KM = 3.0
@@ -52,10 +53,9 @@ class GeoClusterNode(BaseNode):
 
         updated_intent = {**intent, "max_pois": max_pois}
 
+        lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))
-        updates.append(
-            f"地理聚合完成：中心半径{_MAX_RADIUS_KM}km，"
-            f"时间预算{duration_hours}小时→参考{max_pois}站"
-        )
+        updates.append(i18n.step("geo_done", lang,
+            r=_MAX_RADIUS_KM, dur=duration_hours, n=max_pois))
 
         return {**state, "candidates": filtered, "intent": updated_intent, "stream_updates": updates}

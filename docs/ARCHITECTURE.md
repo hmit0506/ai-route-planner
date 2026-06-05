@@ -124,7 +124,11 @@ class RouteState(TypedDict):
 - `dining_count` 非整数或负数 → 修正为 0
 - 不自动追加"文化"类别——数据库可能无文化类 POI，强加会导致搜索失败
 
-**多语言支持**：`language` 字段注入到 system prompt，推理文字随用户语言输出；`city/area/food_pref` 字段统一输出繁体中文（数据库以繁体索引），避免简体/英文导致 LIKE 查询失效。
+**多语言支持**：
+- `language` 字段注入到 system prompt 首行 + user message 前缀，推理文字随用户语言输出
+- zh-TW 模式下，LLM CoT 推理行经 `i18n.to_traditional()` 后处理，将常见简体字转为繁体（覆盖约 80 个字符对），保证显示一致
+- `city/area/food_pref` 字段统一输出繁体中文（数据库以繁体索引），避免简体/英文导致 LIKE 查询失效
+- `must_include_categories` 代码层规范化为固定简体词（`餐饮/文化/娱乐`），确保数据库精确匹配
 
 **food_pref 词汇对齐**：prompt 内嵌标准词对照表，将用户自然语言（"壽司"、"下午茶"、"打邊爐"）归一化为数据库实际 sub_category 词汇，确保 SQL LIKE 能命中。
 
@@ -339,7 +343,27 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 ---
 
-## 八、数据层
+## 八、i18n 模块（route_planner/i18n.py）
+
+统一管理所有用户可见的文本翻译，覆盖三种语言（zh-TW / zh-CN / en）：
+
+| 函数 | 作用 |
+|---|---|
+| `normalize(lang)` | 规范化语言 tag → `"zh-TW"` / `"zh-CN"` / `"en"` |
+| `queue_tip(poi, lang)` | 排队提示文字 |
+| `transport_text(km, lang)` | 步行/骑行/打车说明 |
+| `time_str(mins, lang)` | 时长格式化（3小时30分 / 3h 30min） |
+| `summary(n, mins, budget, deals, lang)` | 行程总结语句 |
+| `f(key, lang, **kwargs)` | 履约报告模板（satisfied / unmatched / tips） |
+| `step(key, lang, **kwargs)` | SSE 进度消息（覆盖全部 8 个节点） |
+| `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk |
+| `to_traditional(text)` | 简体→繁体后处理（~85 个字符对，用于 CoT 推理行保证繁体输出） |
+
+所有节点通过 `state["language"]` 获取语言设置，不再硬编码中文字符串。
+
+---
+
+## 十、数据层
 
 ### POI 数据管理
 
@@ -378,7 +402,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 ---
 
-## 九、FastAPI 接口
+## 十一、FastAPI 接口
 
 ```
 POST /route/generate   首次生成路线（SSE 流式）
@@ -468,7 +492,7 @@ event: error   → {"message": "错误信息"}
 
 ---
 
-## 十、部署
+## 十二、部署
 
 ### 线上环境（Railway）
 
