@@ -1,5 +1,9 @@
+import csv
 import json
 import os
+import sqlite3
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
@@ -14,7 +18,74 @@ from app.schemas import RouteRequest
 from route_planner.graph import build_graph, build_refine_graph
 from route_planner.state import RouteState
 
-app = FastAPI(title="AI Route Planner", version="1.0.0")
+_DATA_DIR = Path(__file__).parent.parent / "route_planner" / "data"
+_CSV_PATH = _DATA_DIR / "poi.csv"
+_DB_PATH  = _DATA_DIR / "poi.db"
+
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS pois (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, name_en TEXT,
+    category TEXT NOT NULL, sub_category TEXT, address TEXT, address_en TEXT,
+    city TEXT, area TEXT, lat REAL, lng REAL,
+    rating REAL, taste_rating REAL, decor_rating REAL, service_rating REAL,
+    hygiene_rating REAL, value_rating REAL, review_count INTEGER,
+    half_year_sales INTEGER, avg_price_per_person REAL,
+    queue_risk TEXT, queue_minutes_peak INTEGER, queue_minutes_offpeak INTEGER,
+    has_group_buy INTEGER, group_buy_title TEXT,
+    group_buy_original_price REAL, group_buy_current_price REAL,
+    business_hours TEXT, trend_tag TEXT, recommend_count INTEGER
+)
+"""
+_FIELDS = [
+    "id","name","name_en","category","sub_category","address","address_en","city","area",
+    "lat","lng","rating","taste_rating","decor_rating","service_rating","hygiene_rating",
+    "value_rating","review_count","half_year_sales","avg_price_per_person","queue_risk",
+    "queue_minutes_peak","queue_minutes_offpeak","has_group_buy","group_buy_title",
+    "group_buy_original_price","group_buy_current_price","business_hours","trend_tag",
+    "recommend_count",
+]
+_REAL = {"lat","lng","rating","taste_rating","decor_rating","service_rating",
+         "hygiene_rating","value_rating","avg_price_per_person",
+         "group_buy_original_price","group_buy_current_price"}
+_INT  = {"review_count","half_year_sales","queue_minutes_peak",
+         "queue_minutes_offpeak","has_group_buy","recommend_count"}
+
+
+def _ensure_db() -> None:
+    if _DB_PATH.exists() and _DB_PATH.stat().st_mtime >= _CSV_PATH.stat().st_mtime:
+        return
+    with open(_CSV_PATH, encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute(_CREATE_SQL)
+    conn.execute("DELETE FROM pois")
+    ph = ", ".join("?" * len(_FIELDS))
+    sql = f"INSERT OR REPLACE INTO pois ({', '.join(_FIELDS)}) VALUES ({ph})"
+    for row in rows:
+        vals = []
+        for field in _FIELDS:
+            v = row.get(field, "")
+            if v == "":
+                vals.append(None)
+            elif field in _REAL:
+                vals.append(float(v))
+            elif field in _INT:
+                vals.append(int(v))
+            else:
+                vals.append(v)
+        conn.execute(sql, vals)
+    conn.commit()
+    conn.close()
+    print(f"[startup] poi.db rebuilt: {len(rows)} rows")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _ensure_db()
+    yield
+
+
+app = FastAPI(title="AI Route Planner", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
