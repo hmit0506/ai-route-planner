@@ -14,6 +14,7 @@ from typing import Dict, Any
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
+import route_planner.i18n as i18n
 
 
 def _passes_constraints(poi: dict, constraints: dict) -> bool:
@@ -62,12 +63,18 @@ class RefineSelectNode(BaseNode):
             if (p.get("id") or p.get("poi_id", "")) not in locked_ids
             and _passes_constraints(p, new_constraints)
         ]
-        pool.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        prefer_subs = new_constraints.get("prefer_sub_category", [])
+        pool.sort(
+            key=lambda x: (
+                0 if any(p in x.get("sub_category", "") for p in prefer_subs) else 1,
+                -x.get("rating", 0),
+            )
+        )
 
         if not pool:
-            # No valid replacement found — keep original POI
+            lang = state.get("language", "zh-TW")
             updates = list(state.get("stream_updates", []))
-            updates.append("未找到符合条件的替换地点，保留原地点")
+            updates.append(i18n.step("refine_no_result", lang))
             return {**state, "stream_updates": updates}
 
         best = pool[0]
@@ -88,7 +95,8 @@ class RefineSelectNode(BaseNode):
             new_route.append(replacement)
         new_route.sort(key=lambda x: x.get("order", 0))
 
+        lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))
-        updates.append(f"已选出替换地点：{best['name']}")
+        updates.append(i18n.step("refine_replaced", lang, name=best["name"]))
 
         return {**state, "route": new_route, "stream_updates": updates}

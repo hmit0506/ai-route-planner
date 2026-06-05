@@ -49,7 +49,7 @@ def call_llm(
             resp = client.chat.completions.create(model=model, messages=messages)
             content = resp.choices[0].message.content
             return _extract_json(content) if parse_json else content
-        except (OpenAIRateLimitError, OpenAIAPIError) as exc:
+        except Exception as exc:
             last_exc = exc
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)

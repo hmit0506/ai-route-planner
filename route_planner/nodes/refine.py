@@ -31,7 +31,8 @@ _SYSTEM_PROMPT = """\
   "new_constraints": {
     "queue_risk": "<可选：低/中/高，用户要求等位少时填'低'>",
     "max_price": <可选：整数，用户要求便宜时填写人均上限>,
-    "avoid_sub_category": ["<可选：要排除的子类别>"]
+    "avoid_sub_category": ["<可选：要排除的子类别>"],
+    "prefer_sub_category": ["<可选：用户指定的菜系或类型，如 日本料理、壽司、博物館>"]
   }
 }
 
@@ -77,6 +78,14 @@ class RefineNode(BaseNode):
         replace_category = refine_meta.get("category", "餐饮")
 
         intent["_refine"] = refine_meta
+
+        # Carry preference into POISearchNode so it applies sub_category ordering
+        pref_subs = refine_meta.get("new_constraints", {}).get("prefer_sub_category", [])
+        if pref_subs:
+            if replace_category == "餐饮":
+                intent["food_pref"] = pref_subs
+            else:
+                intent["culture_pref"] = pref_subs
 
         # Extract geographic + budget context from the existing route POIs
         # so POISearchNode can search in the right area

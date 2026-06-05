@@ -321,6 +321,9 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 营业时间过滤（POISearchNode）：按 intent.time_range 过滤候选，soft fallback 避免结果过少
 - [x] 高德 POI 兜底（POISearchNode）：候选 < 3 条时自动调用高德 Place Search API 补充
 - [x] 数据补全：business_hours 按 sub_category 为 18,075 家餐厅生成合理营业时间（all_day / split / evening / brunch 四类）；has_group_buy 按价格档位为 8,512 家（47%）餐厅生成团购套餐数据
+- [x] 缓存 key 加入 language 字段，防止跨语言缓存污染；缓存命中路径补 user_memory 更新；缓存命中 SSE 消息走 i18n
+- [x] RefineNode 新增 prefer_sub_category 约束（支持"换一家日本料理"等带菜系的替换）；prefer_sub_category 传入 POISearchNode 偏好排序 + RefineSelectNode 优先筛选
+- [x] refine 流程结束后补 user_memory.update()；call_llm 异常捕获扩至 Exception（覆盖 JSONDecodeError）；高德兜底/替换成功/失败 SSE 消息全部 i18n 化；enrich_done 三语补全
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交

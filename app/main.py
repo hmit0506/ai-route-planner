@@ -18,6 +18,7 @@ from app.schemas import RouteRequest
 from route_planner.graph import build_graph, build_refine_graph
 from route_planner.state import RouteState
 import route_planner.user_memory as user_memory
+import route_planner.i18n as i18n
 
 _DATA_DIR = Path(__file__).parent.parent / "route_planner" / "data"
 _CSV_PATH = _DATA_DIR / "poi.csv"
@@ -102,23 +103,26 @@ _refine_graph = build_refine_graph()
 _cache: dict[str, dict] = {}
 
 
-def _intent_cache_key(intent: dict) -> str:
-    """Structured cache key from parsed intent — city+area+budget_tier+sorted_cats+dining_count."""
+def _intent_cache_key(intent: dict, language: str = "zh-TW") -> str:
+    """Structured cache key from parsed intent — lang+city+area+budget_tier+sorted_cats+dining_count."""
     city   = intent.get("city", "")
     area   = intent.get("area", "")
     budget = (intent.get("budget_per_person", 0) // 50) * 50  # bucket to nearest 50
     cats   = ",".join(sorted(intent.get("must_include_categories", [])))
     dining = intent.get("dining_count", 0)
     dur    = intent.get("duration_hours", 0)
-    return f"{city}|{area}|{budget}|{cats}|d{dining}|h{dur}"
+    return f"{language}|{city}|{area}|{budget}|{cats}|d{dining}|h{dur}"
 
 
 async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
-    # Fast check: exact input match
-    raw_key = req.user_input[:100]
+    # Fast check: exact input match (language-scoped)
+    raw_key = f"{req.language}:{req.user_input[:100]}"
     if raw_key in _cache:
-        yield _sse("step", {"message": "缓存命中，直接返回结果"})
-        yield _sse("result", _format_result(_cache[raw_key]))
+        cached = _cache[raw_key]
+        if req.user_id and cached.get("intent") and cached.get("route"):
+            user_memory.update(req.user_id, cached["intent"], cached["route"])
+        yield _sse("step", {"message": i18n.step("cache_hit", req.language)})
+        yield _sse("result", _format_result(cached))
         yield _sse("done", {})
         return
 
@@ -153,10 +157,13 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
 
             # After IntentNode resolves, check intent-based cache
             if intent_key is None and chunk.get("intent"):
-                intent_key = _intent_cache_key(chunk["intent"])
+                intent_key = _intent_cache_key(chunk["intent"], req.language)
                 if intent_key in _cache:
-                    yield _sse("step", {"message": "意图缓存命中，直接返回结果"})
-                    yield _sse("result", _format_result(_cache[intent_key]))
+                    cached = _cache[intent_key]
+                    if req.user_id and cached.get("intent") and cached.get("route"):
+                        user_memory.update(req.user_id, cached["intent"], cached["route"])
+                    yield _sse("step", {"message": i18n.step("intent_cache", req.language)})
+                    yield _sse("result", _format_result(cached))
                     yield _sse("done", {})
                     return
 
@@ -236,6 +243,8 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
         return
 
     if final_state:
+        if req.user_id and final_state.get("route"):
+            user_memory.update(req.user_id, final_state.get("intent", {}), final_state["route"])
         yield _sse("result", _format_result(final_state))
 
     yield _sse("done", {})

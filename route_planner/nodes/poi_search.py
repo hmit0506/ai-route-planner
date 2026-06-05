@@ -221,6 +221,9 @@ class POISearchNode(BaseNode):
         updates.append(i18n.step("poi_found", lang, summary=summary))
 
         if used_amap_cats:
-            updates.append(f"📍 本地數據不足，已補充高德地圖數據：{', '.join(used_amap_cats)}")
+            cats_display = ", ".join(
+                i18n.translate_field("category", c, lang) for c in used_amap_cats
+            )
+            updates.append(i18n.step("amap_fallback", lang, cats=cats_display))
 
         return {**state, "candidates": candidates, "stream_updates": updates}

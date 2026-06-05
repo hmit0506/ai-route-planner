@@ -284,15 +284,17 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 
 **RefineNode（LLM）**：
 - 输入：用户话语 + 当前路线摘要（name/category/rating/queue_risk/price）
-- 解析：要替换的节点编号、替换类别、新约束（queue_risk 上限、max_price、avoid_sub_category）
+- 解析：要替换的节点编号、替换类别、新约束（queue_risk 上限、max_price、avoid_sub_category、**prefer_sub_category**）
+- `prefer_sub_category`：用户指定的菜系/类型（如"日本料理"、"博物館"），写入 `intent["food_pref"]`（餐饮）或 `intent["culture_pref"]`（文化），使 POISearchNode 对偏好类型优先排序
 - 从现有路线 POI 中提取 `city`/`area`（EnrichNode 已写入这两个字段），推算预算上限
 - 写入 `intent["_refine"]` + `intent["must_include_categories"]`（仅含被替换类别），让 POISearchNode 只搜目标类别
 - 设置 `locked_nodes`
 
 **RefineSelectNode（纯代码）**：
 - 候选池排除**所有当前路线中的 POI**（包括被替换的，避免"替换"回原来那家）
-- 按 new_constraints 过滤后选评分最高者
-- 若无符合条件的替换，保留原 POI 并提示
+- 按 new_constraints 过滤（queue_risk / max_price / avoid_sub_category）
+- 若 `prefer_sub_category` 非空，偏好菜系 POI 优先排在前列（匹配→非匹配，再按 rating 降序）
+- 若无符合条件的替换，保留原 POI 并提示（三语 SSE 消息）
 
 ---
 
@@ -327,7 +329,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | EnrichNode 纯代码 | < 10ms |
 | OutputNode 步行路径（并行） | 所有段同时发出，最坏情况 = 单段超时 3s（原来是 N×3s） |
 | SSE 流式推送 | 每完成一个节点立即推进度，用户体感"秒开" |
-| 内存缓存（两级） | 1. 原始输入精确匹配；2. IntentNode 后按 city+area+budget_tier+cats+dining_count 检查；命中则 < 1s | 
+| 内存缓存（两级） | 1. 原始输入精确匹配（含 language）；2. IntentNode 后按 language+city+area+budget_tier+cats+dining_count 检查；命中则 < 1s；两级命中均同步更新 user_memory | 
 
 高德步行路径 API 失败时自动降级为仅标记点地图，不阻塞主流程。
 
