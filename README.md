@@ -21,8 +21,11 @@
 - **三语支持**：前端传 `language` 字段（`zh-TW` / `zh-CN` / `en`），所有用户可见文字（进度消息、摘要、排队提示、交通说明、类别名称、履约报告）随语言切换；CoT 推理行自动语言检测 + 后处理保证繁体输出；POI 含双语字段（`name_en`、`address_en`）
 - **真实 POI 数据**：18,248 条香港 POI（18,075 家餐厅 + 173 个文化/娱乐/自然景点），餐厅来源 OpenRice 2021–2025 真实评论数据；景点含博物館、泳灘、郊野公園、主要景點、歷史建築、宗教古蹟、觀景地標等；75 个中文类别标签，88% 餐厅带多标签，LIKE 查询可命中任意标签
 - **时间感知规划**：根据行程时长自动决定站点数（3-8站）
-- **地理聚合**：过滤离群 POI，确保所有站点在合理步行/骑行范围内，避免"两头跑"
+- **地理聚合**：以意图 area 的真实坐标为锚点（90+ 香港/上海社区对照表），半径 2km 过滤，确保所有站点在合理步行范围内，避免"两头跑"
+- **营业时间过滤**：POI 召回阶段自动过滤与用户时间段不重叠的场所；候选不足时 soft fallback 保留原始结果
+- **高德 POI 兜底**：本地数据库候选 < 3 条时，自动调用高德 Place Search API 补充候选，并在 SSE 步骤流中提示
 - **多维度决策**：综合评分、性价比、排队峰值/非峰值、口味评分、销量热度，选出最优路线
+- **用户记忆**：传入 `user_id` 即自动加载历史偏好（菜系、忌口、消费习惯），注入 RouteAgent 作为软约束；已访问 POI 自动从候选中排除，避免重复推荐；路线生成后异步更新记忆
 - **词汇对齐**：IntentNode 将用户自然语言（"壽司"、"下午茶"、"打邊爐"）规范化为数据库 sub_category 标准词，SQL LIKE 精准命中
 - **排队风险预警**：高峰等位提示 + 错峰安排建议
 - **静态地图**：高德静态地图打点 + 真实步行路径蓝线（后端生成图片 URL）
@@ -87,7 +90,7 @@
 bash setup.sh
 ```
 
-脚本自动完成：创建 `.venv`、安装依赖、生成 `.env`、从 `poi.csv` 生成 `poi.db`。
+脚本自动完成：创建 `.venv`、安装依赖、生成 `.env`。`poi.db` 在首次启动服务时自动从 `poi.csv` 生成。
 
 ### 2. 填入 API Key
 
@@ -162,11 +165,13 @@ PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "中環一整天，包括
   "user_input": "旺角附近下午，想吃日本料理，預算400港幣",
   "language": "zh-TW",
   "conversation_history": [],
-  "locked_nodes": []
+  "locked_nodes": [],
+  "user_id": "user_abc123"
 }
 ```
 
-`language` 可选值：`"zh-TW"`（繁体，默认）、`"zh-CN"`（简体）、`"en"`（English）。
+`language` 可选值：`"zh-TW"`（繁体，默认）、`"zh-CN"`（简体）、`"en"`（English）。  
+`user_id` 可选；传入后自动加载/更新用户偏好记忆，不传则匿名无记忆。
 
 ### POST /route/refine
 
@@ -212,7 +217,9 @@ event: done    → {}
 ai-route-planner/
 ├── route_planner/
 │   ├── i18n.py                # 三语翻译模块（文字模板 + 字段级翻译）
-│   ├── state.py               # RouteState TypedDict（全局状态，含 language 字段）
+│   ├── area_coords.py         # area 名 → (lat, lng) 对照表（90+ 香港/上海社区）
+│   ├── user_memory.py         # 用户偏好记忆（load/save/update，JSON 文件持久化）
+│   ├── state.py               # RouteState TypedDict（全局状态，含 language/user_memory 字段）
 │   ├── node.py                # BaseNode 基类
 │   ├── graph.py               # LangGraph 流水线（build_graph + build_refine_graph）
 │   ├── llm.py                 # DeepSeek + Claude fallback，指数退避重试
@@ -226,8 +233,9 @@ ai-route-planner/
 │   │   ├── refine.py          # RefineNode：解析"换一家"意图（LLM）
 │   │   └── refine_select.py   # RefineSelectNode：选最优替换 POI（纯代码）
 │   └── data/
-│       ├── poi.csv            # POI 数据源（100条，GitHub 直接查看，Excel 可编辑）
-│       └── poi.db             # SQLite 运行时数据库（setup.sh 自动生成，不提交 git）
+│       ├── poi.csv            # POI 数据源（18,248 条，GitHub 直接查看，Excel 可编辑）
+│       ├── poi.db             # SQLite 运行时数据库（启动时自动生成，不提交 git）
+│       └── users/             # 用户记忆 JSON 文件目录（运行时生成，不提交 git）
 ├── app/
 │   ├── main.py                # FastAPI 路由 + SSE 流式 + 内存缓存
 │   └── schemas.py             # Pydantic 请求/响应模型
@@ -308,6 +316,11 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] area 字段全量填充：用 DeepSeek 批量地理编码，将所有"香港"通用区名替换为精确社区名（旺角/中環/灣仔/柴灣…），18,211 行 100% 覆盖
 - [x] i18n 地名英文翻译全覆盖：_LOCATION_EN 扩展至 204 个香港社区，18,211 行 100% 可英文输出
 - [x] 补充 37 条地标景点（天壇大佛、大館、PMQ、山頂纜車、赤松黃大仙祠、志蓮淨苑、天星小輪等），去重后合并为 18,248 条；i18n 扩展至 209 个社区，100% 覆盖
+- [x] GeoClusterNode 升级：area 真实坐标锚点（area_coords.py，90+ 社区），半径 3km→2km，锚点准确后过滤才真正有效
+- [x] 用户记忆系统（user_memory.py）：user_id 持久化菜系/忌口/预算/已访问 POI；路线生成后异步更新；历史偏好注入 RouteAgent 软约束
+- [x] 营业时间过滤（POISearchNode）：按 intent.time_range 过滤候选，soft fallback 避免结果过少
+- [x] 高德 POI 兜底（POISearchNode）：候选 < 3 条时自动调用高德 Place Search API 补充
+- [x] 数据补全：business_hours 按 sub_category 为 18,075 家餐厅生成合理营业时间（all_day / split / evening / brunch 四类）；has_group_buy 按价格档位为 8,512 家（47%）餐厅生成团购套餐数据
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交

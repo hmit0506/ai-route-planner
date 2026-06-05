@@ -4,6 +4,7 @@ from typing import Dict, Any
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 from route_planner.llm import call_llm
+from route_planner.user_memory import build_route_hint
 import route_planner.i18n as i18n
 
 _SYSTEM_PROMPT = """\
@@ -143,11 +144,14 @@ class RouteNode(BaseNode):
         if culture_pref:
             pref_note += f"- 文化偏好：{culture_pref}，优先选 sub_category 最接近的；数据库无完全匹配时选评分最高的文化/娱乐\n"
 
+        memory_hint = build_route_hint(state.get("user_memory", {}), intent)
+
         user_msg = (
             f"用户意图：{json.dumps(user_intent, ensure_ascii=False)}\n\n"
             f"时间预算：{duration_hours}小时，参考站数{max_pois}站\n"
             f"餐饮安排：{meal_note}\n"
             + (f"偏好参考（尽量满足，无匹配时选最近似）：\n{pref_note}" if pref_note else "")
+            + (f"\n{memory_hint}\n" if memory_hint else "")
             + f"\n候选POI（已按地理聚合过滤，偏好匹配的已排前）：\n"
             f"{json.dumps(compact_candidates, ensure_ascii=False, indent=2)}\n\n"
             "请选出最优路线，只输出JSON数组。"

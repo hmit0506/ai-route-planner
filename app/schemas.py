@@ -8,6 +8,7 @@ class RouteRequest(BaseModel):
     conversation_history: List[Dict[str, str]] = Field(default_factory=list)
     locked_nodes: List[int] = Field(default_factory=list)
     current_route: List[Dict[str, Any]] = Field(default_factory=list)
+    user_id: Optional[str] = None
 
 
 class GroupBuy(BaseModel):

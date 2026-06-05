@@ -98,6 +98,7 @@ class RouteState(TypedDict):
     fulfillment_notes: dict       # OutputNode 写入：satisfied / unmatched / tips
     conversation_history: list    # 跨轮保留，传入 IntentNode
     stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
+    user_memory: dict             # app 层从 user_id 加载，空 dict 表示匿名；路线完成后异步更新
 ```
 
 每个节点只写自己关心的字段，其余透传（`{**state, "key": new_value}`）。
@@ -164,6 +165,9 @@ class RouteState(TypedDict):
 4. 偏好排序：餐饮类用 `food_pref`（全部项），文化/娱乐类用 `culture_pref`，匹配 `sub_category` 的 POI 优先
 5. 按 `rating DESC`，每类取 Top-10
 6. Fallback：若命中 < 3 个，退化为仅 city 过滤（放宽商圈限制）
+7. **营业时间过滤**：按 `intent.time_range` 对 `business_hours` 字段做时间段重叠检查（解析 `HH:MM-HH:MM` 格式），过滤后不足 3 条则 soft fallback 保留原始结果
+8. **已访问 POI 过滤**：从 `user_memory.visited_poi_ids` 中排除已去过的 POI，避免重复推荐
+9. **高德 Place Search 兜底**：上述所有过滤后仍不足 3 条时，调用高德 Place Search API（`/v3/place/text`）补充候选，并在 SSE 步骤流中提示；`AMAP_API_KEY` 未设置时跳过
 
 ---
 
@@ -172,14 +176,14 @@ class RouteState(TypedDict):
 **职责**：地理聚合过滤 + 根据时间预算计算推荐站点数。
 
 **逻辑**：
-1. 合并所有类别候选，计算地理质心（lat/lng 均值）
-2. 过滤掉距质心 > 3km 的 POI（防止选出跨区域组合）；若某类剩余 < 3 个则回退保留原始候选
+1. **锚点选取**：优先从 `area_coords.py`（90+ 香港/上海社区对照表）查找 `intent.area` 的真实中心坐标作为锚点；查不到时退化为候选 POI 的几何质心（lat/lng 均值）
+2. 过滤掉距锚点 > 2km 的 POI（原来用质心导致"自洽偏移"，改为真实区域中心后过滤才真正有效）；若某类剩余 < 3 个则回退保留原始候选
 3. 计算 `max_pois = max(3, min(8, floor(duration_hours × 60 / 65)))`
 4. 将 `max_pois` 写入 intent，传递给 RouteNode 作为参考
 
-**注意**：GeoClusterNode 只做地理和时间的约束，**不做类别配比**。餐饮数量和文化/娱乐数量由 RouteAgent 根据 `meal_plan` 自主决定，避免硬性规则覆盖用户的真实意图。
+**为什么之前锚点有问题**：旧版用候选自身的质心——候选本来就分散时，质心落在两者中间，大部分 POI 都在 3km 内，过滤形同虚设。改为区域中心坐标后，"中環"的候选只保留真正在中環附近的 POI。
 
-**为什么需要**：RouteNode 不知道真实交通时间，依赖 LLM 对坐标的直觉估算。GeoClusterNode 提前过滤离群 POI，从根本上避免"选了两头跑"的路线。
+**注意**：GeoClusterNode 只做地理和时间的约束，**不做类别配比**。餐饮数量和文化/娱乐数量由 RouteAgent 根据 `meal_plan` 自主决定，避免硬性规则覆盖用户的真实意图。
 
 ---
 
@@ -210,6 +214,8 @@ class RouteState(TypedDict):
 - 若 `dining_count == 0` → 合理安排即可，保证行程有非餐饮类站点
 
 **自我检查机制**：LLM 输出后，代码验证：① 站点数 ≥ 3；② 餐饮数量匹配 dining_count；③ 非全餐饮。若不通过，携带纠正说明触发一次重试，并在 SSE stream 中显示 `⚠️ 自检发现问题`。
+
+**用户记忆注入**：若 `user_memory` 非空，`build_route_hint()` 生成简短软约束提示附加到 user message（历史菜系偏好、历史忌口补充、历史人均消费参考）；不强制覆盖当前 intent，仅在 intent 未指定时起作用。
 
 **intent 传递**：只传用户原始意图字段，剔除 GeoCluster 内部字段（`max_pois` 等），避免污染 LLM 的上下文理解。
 
@@ -369,6 +375,30 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 ---
 
+## 九、用户记忆系统（route_planner/user_memory.py）
+
+每个用户（由 `user_id` 标识）在 `route_planner/data/users/{user_id}.json` 维护一份记忆文件：
+
+```json
+{
+  "food_pref": ["日本料理", "壽司"],
+  "avoid": ["辣"],
+  "budget_history": [200, 250, 180],
+  "visited_poi_ids": ["poi_0023", "poi_1147"]
+}
+```
+
+| 字段 | 更新时机 | 使用方式 |
+|---|---|---|
+| `food_pref` | 每次生成后追加 intent.food_pref | RouteNode 软约束提示（intent 无偏好时参考） |
+| `avoid` | 每次生成后追加 intent.avoid | RouteNode 软约束提示（补充当前 intent 未涵盖的忌口） |
+| `budget_history` | 每次生成后记录 budget_per_person | RouteNode 提示历史人均（仅供参考） |
+| `visited_poi_ids` | 每次生成后追加路线 POI id | POISearchNode 从候选中直接过滤排除 |
+
+**隐私说明**：记忆文件存于服务器本地文件系统，Railway 重新部署后清空（ephemeral filesystem）。不传 `user_id` 则完全匿名，无任何记忆写入。
+
+---
+
 ## 十、数据层
 
 ### POI 数据管理
@@ -404,10 +434,10 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `trend_tag` | open_since 2023+ → 新晋；2024+2025 评论 ≥ 2× 前期 → 火爆；其余 经典 |
 | `half_year_sales` | (2024 + 2025 评论数) × 200（相对代理值） |
 | `recommend_count` | 5年评论总数（真实数据，范围 3-50，代理口碑热度） |
-| `has_group_buy` | 全部 false（无数据，待补充） |
-| `business_hours` | 空（无数据，待补充） |
+| `has_group_buy` | 按 `avg_price_per_person` 档位概率（≥200元→55%，≥100元→45%，≥60元→35%，≥30元→20%，其余5%）+ poi_id hash；8,512 家（47%）有团购；`group_buy_title` 按 sub_category 生成对应套餐名，`group_buy_original_price` = avg×2，折扣 0.65–0.84 |
+| `business_hours` | 按 sub_category 分四类生成：all_day（港式/快餐/咖啡，08:00-22:00 变体）、full（粤菜/火锅，11:00-23:00 变体）、split（日本料理/西餐，午市+晚市）、evening（居酒屋/酒吧，17:30-23:30）、brunch（早午餐，08:00-15:00）；hash 变化 ±0-60min |
 
-**迁移脚本**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ Railway 启动时 `migrate_to_sqlite.py` → `poi.db`（不提交）。
+**迁移流程**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ 服务启动时 `app/main.py` lifespan `_ensure_db()` → `poi.db`（不提交）。`poi.db` 仅在 CSV 比 DB 新时重建。
 
 ---
 
@@ -509,13 +539,13 @@ event: error   → {"message": "错误信息"}
 
 - `git push` 到 main 自动触发重新部署
 - 环境变量在 Railway Variables 面板填写，不进代码
-- 启动时自动执行 `migrate_to_sqlite.py` 生成 `poi.db`
+- 启动时 `app/main.py` lifespan 自动执行 `_ensure_db()` 生成 `poi.db`（CSV 比 DB 新时重建）
 - 自带 HTTPS，满足 NoCode 前端的 Mixed Content 限制要求
 
 ### 本地开发
 
 ```bash
-bash setup.sh   # 创建 .venv、装依赖、生成 poi.db、复制 .env
+bash setup.sh   # 创建 .venv、装依赖、复制 .env（poi.db 首次启动自动生成）
 # 填入 .env 中的 API Key
 PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```

@@ -13,3 +13,4 @@ class RouteState(TypedDict):
     fulfillment_notes: Dict[str, Any]   # satisfied / unmatched / tips
     conversation_history: List[Dict[str, str]]
     stream_updates: List[str]
+    user_memory: Dict[str, Any]          # loaded from user_id; empty dict if anonymous

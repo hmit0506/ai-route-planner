@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 from app.schemas import RouteRequest
 from route_planner.graph import build_graph, build_refine_graph
 from route_planner.state import RouteState
+import route_planner.user_memory as user_memory
 
 _DATA_DIR = Path(__file__).parent.parent / "route_planner" / "data"
 _CSV_PATH = _DATA_DIR / "poi.csv"
@@ -121,6 +122,8 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         yield _sse("done", {})
         return
 
+    mem = user_memory.load(req.user_id) if req.user_id else {}
+
     initial: RouteState = {
         "user_input": req.user_input,
         "language": req.language,
@@ -133,6 +136,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         "fulfillment_notes": {},
         "conversation_history": req.conversation_history,
         "stream_updates": [],
+        "user_memory": mem,
     }
 
     prev_steps: list[str] = []
@@ -161,10 +165,11 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         return
 
     if final_state:
-        # Store under both raw input key and intent-based key
         _cache[raw_key] = final_state
         if intent_key:
             _cache[intent_key] = final_state
+        if req.user_id and final_state.get("intent") and final_state.get("route"):
+            user_memory.update(req.user_id, final_state["intent"], final_state["route"])
         yield _sse("result", _format_result(final_state))
 
     yield _sse("done", {})
@@ -214,6 +219,7 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
         "fulfillment_notes": {},
         "conversation_history": req.conversation_history,
         "stream_updates": [],
+        "user_memory": user_memory.load(req.user_id) if req.user_id else {},
     }
 
     prev_steps: list[str] = []
