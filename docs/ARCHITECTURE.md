@@ -158,6 +158,8 @@ class RouteState(TypedDict):
 
 **数据源**：`poi.csv`（提交到 git，人工维护）→ `setup.sh` 迁移为 `poi.db`（不提交 git）。
 
+**类别名规范化（`_normalize_cat`）**：`must_include_categories` 中的值可能来自英文模式路线的翻译结果（如 `"Dining"`、`"Culture"`）或繁体（`"餐飲"`），统一规范化为数据库内部的简体值（`"餐饮"`、`"文化"`、`"娱乐"`）再查询，避免 refine 时出现 0 候选。
+
 **召回策略**：
 1. `city LIKE ?` + `area LIKE ?` 模糊匹配
 2. `avg_price_per_person <= budget_per_person × 1.2`（20% 弹性，避免过度截断）
@@ -243,7 +245,7 @@ class RouteState(TypedDict):
 | `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；英文模式→"Trending (1.2k+ sold)" |
 
 **字段级翻译**（`language="en"` 时）：
-- `sub_category`："日本料理、壽司" → "Japanese / Sushi"（75 个标准词对照表）
+- `sub_category`："日本料理、壽司" → "Japanese / Sushi"（餐饮 75 词 + 文化类 15+ 词，如 博物館→Museum、歷史建築→Historic Site、旅遊景點→Tourist Attraction）
 - `category`："餐饮" → "Dining"
 - `queue_risk`："高" → "High"
 - `trend_tag`："火爆" → "Trending"
@@ -278,6 +280,10 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 - `unmatched`：哪些没找到及用了什么替代
 - `tips`：多轮对话调整建议（如「换一家川菜餐厅」）
 
+**pref 语言一致性**：`food_pref`/`culture_pref`/`avoid` 值在嵌入 fulfillment 模板前先调用 `translate_field("sub_category", val, lang)` 翻译，确保消息语言与 `language` 字段一致（避免 zh-CN 模式输出繁体「火鍋」、英文模式输出中文类别名「藝術館」）。
+
+**dining_excess 分支**：`dining_count` 约束在两个方向均有专属消息——实际餐饮站点少于预期触发 `dining_mismatch`（"不足"），多于预期触发 `dining_excess`（"过多"），提示方向相反，均覆盖三语。
+
 ---
 
 ### 4.7 RefineNode + RefineSelectNode（多轮对话）
@@ -292,6 +298,7 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 
 **RefineSelectNode（纯代码）**：
 - 候选池排除**所有当前路线中的 POI**（包括被替换的，避免"替换"回原来那家）
+- `replace_category` 同样经 `_normalize_cat` 规范化（英文模式路线的 `"Dining"` → `"餐饮"`），确保与候选字典的 key 一致
 - 按 new_constraints 过滤（queue_risk / max_price / avoid_sub_category）
 - 若 `prefer_sub_category` 非空，偏好菜系 POI 优先排在前列（匹配→非匹配，再按 rating 降序）
 - 若无符合条件的替换，保留原 POI 并提示（三语 SSE 消息）
@@ -367,7 +374,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `transport_text(km, lang)` | 步行/骑行/打车说明 |
 | `time_str(mins, lang)` | 时长格式化（3小时30分 / 3h 30min） |
 | `summary(n, mins, budget, deals, lang)` | 行程总结语句 |
-| `f(key, lang, **kwargs)` | 履约报告模板（satisfied / unmatched / tips） |
+| `f(key, lang, **kwargs)` | 履约报告模板（dining_ok / dining_mismatch / dining_excess / food_ok / food_miss / culture_ok / culture_miss / avoid_violated 等，含双向 dining 判断） |
 | `step(key, lang, **kwargs)` | SSE 进度消息（覆盖全部 8 个节点） |
 | `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk / city / area |
 | `to_traditional(text)` | 简→繁转换，基于 OpenCC（`s2t` 模式，覆盖所有汉字） |

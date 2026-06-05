@@ -324,6 +324,7 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 缓存 key 加入 language 字段，防止跨语言缓存污染；缓存命中路径补 user_memory 更新；缓存命中 SSE 消息走 i18n
 - [x] RefineNode 新增 prefer_sub_category 约束（支持"换一家日本料理"等带菜系的替换）；prefer_sub_category 传入 POISearchNode 偏好排序 + RefineSelectNode 优先筛选
 - [x] refine 流程结束后补 user_memory.update()；call_llm 异常捕获扩至 Exception（覆盖 JSONDecodeError）；高德兜底/替换成功/失败 SSE 消息全部 i18n 化；enrich_done 三语补全
+- [x] 三语 20 案例系统测试 + 4 项 bug 修复：① 英文 refine 0 候选（_normalize_cat 规范化 Dining→餐饮）；② zh-CN fulfillment 含繁体（pref 值在 _build_fulfillment 中先翻译）；③ 英文模式文化类 sub_category 无英译（扩展 _SUB_CATEGORY_EN 15+ 词条）；④ dining_excess 消息方向反（新增 dining_excess/dining_excess_tip 三语 key）
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交
