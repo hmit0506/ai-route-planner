@@ -24,6 +24,7 @@
 - **地理聚合**：以意图 area 的真实坐标为锚点（90+ 香港/上海社区对照表），半径 2km 过滤，确保所有站点在合理步行范围内，避免"两头跑"
 - **营业时间过滤**：POI 召回阶段自动过滤与用户时间段不重叠的场所；候选不足时 soft fallback 保留原始结果
 - **高德 POI 兜底**：本地数据库候选 < 3 条时，自动调用高德 Place Search API 补充候选，并在 SSE 步骤流中提示
+- **评论信号驱动**：11 个来自真实 OpenRice 评论的信号字段（risk/queue/photo/local/accessibility mention rate + year_max + 四个 level 标签 + scenario_tags）参与 SQL 预排序和 LLM 决策；低风险优先、近年仍活跃优先；prefer_local / 打卡拍照 / 家庭親子等场合需求精准匹配
 - **多维度决策**：综合评分、性价比、排队峰值/非峰值、口味评分、销量热度，选出最优路线
 - **用户记忆**：传入 `user_id` 即自动加载历史偏好（菜系、忌口、消费习惯），注入 RouteAgent 作为软约束；已访问 POI 自动从候选中排除，避免重复推荐；路线生成后异步更新记忆
 - **词汇对齐**：IntentNode 将用户自然语言（"壽司"、"下午茶"、"打邊爐"）规范化为数据库 sub_category 标准词，SQL LIKE 精准命中
@@ -208,6 +209,12 @@ event: done    → {}
 | `queue_risk_tip` | 人性化排队提示，如"晚高峰等位约40分钟，建议17:30前到店" |
 | `group_buy.discount` | 团购折扣率，如"6.8折" |
 | `trend_tag` | 含销量的趋势标签，如"火爆（已售1.2万单）" |
+| `risk_mention_rate` | 负面体验短语占比（0~1，均值0.6）；越低越安全，前端可展示安全评级 |
+| `queue_mention_rate` | 排队抱怨占比（0~1，均值0.3）；>0.5 可展示排队警告 |
+| `photo_mention_rate` | 拍照打卡短语占比（0~1）；高值可展示"打卡热点"标签 |
+| `local_mention_rate` | 地道/本土感短语占比（0~1）；高值可展示"地道老铺"标签 |
+| `year_max` | 最近收到评论的年份（2021-2025）；前端可展示"活跃" / "久未更新"提示 |
+| `scenario_tags` | 场合标签，如 `"情侶約會;朋友聚餐"`；前端可展示场合适配图标 |
 
 ---
 
@@ -326,6 +333,11 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] refine 流程结束后补 user_memory.update()；call_llm 异常捕获扩至 Exception（覆盖 JSONDecodeError）；高德兜底/替换成功/失败 SSE 消息全部 i18n 化；enrich_done 三语补全
 - [x] 三语 20 案例系统测试 + 4 项 bug 修复：① 英文 refine 0 候选（_normalize_cat 规范化 Dining→餐饮）；② zh-CN fulfillment 含繁体（pref 值在 _build_fulfillment 中先翻译）；③ 英文模式文化类 sub_category 无英译（扩展 _SUB_CATEGORY_EN 15+ 词条）；④ dining_excess 消息方向反（新增 dining_excess/dining_excess_tip 三语 key）
 - [x] 三语 50 案例深度测试 + 4 项修复：① RouteNode dining_count 强制执行（代码级截断 + 精确 correction prompt）；② zh-CN fulfillment POI 名字繁→简（`_name()` 辅助函数）；③ 文化类 POI 排队风险修正（103 条公园/海滩/郊野公园从"高"修为"低"）；④ POISearch 区域无覆盖时对所有类别触发 Amap（area_mismatch 检测）
+- [x] 评论信号系统：从 OpenRice 5年评论分析（POI_profile_extra_keywords.csv，23,541 POI）提取 11 个信号字段写入 poi.csv 和 poi.db；queue_risk 字段由 queue_signal_level 真实数据覆盖（原为 hash mock）
+- [x] 信号驱动 SQL 排序（POISearchNode）：risk_mention_rate ASC + year_max DESC 始终生效；prefer_local→local_mention_rate DESC；打卡拍照场景→photo_mention_rate DESC；家庭親子场景→accessibility_mention_rate DESC；场合 scenario_tags LIKE 匹配排序
+- [x] IntentAgent 新增 prefer_local（检测"地道/本地/老字号"）+ scenarios（情侶約會/朋友聚餐/家庭親子/慶生/商務接待/一人食/打卡拍照）字段
+- [x] RouteNode LLM 决策扩展：compact 传入 8 个信号字段，system prompt 提供均值基线（risk均值0.6/queue均值0.3）和阈值指引，LLM 可精确推理踩雷风险、排队建议、地道偏好
+- [x] 所有信号字段流经 EnrichNode → 最终路线输出，前端可直接使用
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交

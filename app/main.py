@@ -35,7 +35,12 @@ CREATE TABLE IF NOT EXISTS pois (
     queue_risk TEXT, queue_minutes_peak INTEGER, queue_minutes_offpeak INTEGER,
     has_group_buy INTEGER, group_buy_title TEXT,
     group_buy_original_price REAL, group_buy_current_price REAL,
-    business_hours TEXT, trend_tag TEXT, recommend_count INTEGER
+    business_hours TEXT, trend_tag TEXT, recommend_count INTEGER,
+    queue_signal_level TEXT, risk_signal_level TEXT, photo_hotness_level TEXT,
+    local_authenticity_level TEXT, scenario_tags TEXT,
+    risk_mention_rate REAL, queue_mention_rate REAL,
+    year_max INTEGER, photo_mention_rate REAL,
+    local_mention_rate REAL, accessibility_mention_rate REAL
 )
 """
 _FIELDS = [
@@ -45,12 +50,18 @@ _FIELDS = [
     "queue_minutes_peak","queue_minutes_offpeak","has_group_buy","group_buy_title",
     "group_buy_original_price","group_buy_current_price","business_hours","trend_tag",
     "recommend_count",
+    "queue_signal_level","risk_signal_level","photo_hotness_level",
+    "local_authenticity_level","scenario_tags",
+    "risk_mention_rate","queue_mention_rate",
+    "year_max","photo_mention_rate","local_mention_rate","accessibility_mention_rate",
 ]
 _REAL = {"lat","lng","rating","taste_rating","decor_rating","service_rating",
          "hygiene_rating","value_rating","avg_price_per_person",
-         "group_buy_original_price","group_buy_current_price"}
+         "group_buy_original_price","group_buy_current_price",
+         "risk_mention_rate","queue_mention_rate",
+         "photo_mention_rate","local_mention_rate","accessibility_mention_rate"}
 _INT  = {"review_count","half_year_sales","queue_minutes_peak",
-         "queue_minutes_offpeak","has_group_buy","recommend_count"}
+         "queue_minutes_offpeak","has_group_buy","recommend_count","year_max"}
 
 
 def _ensure_db() -> None:

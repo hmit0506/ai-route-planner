@@ -97,7 +97,18 @@ class EnrichNode(BaseNode):
                 "stay_minutes": item.get("stay_minutes", 60),
                 "trend_tag": tf("trend_tag", _trend_tag(poi)),
                 "business_hours": poi.get("business_hours", ""),
-                "pref_matched": matched,  # True = matches user preference; False = best available substitute
+                "pref_matched": matched,
+                "risk_mention_rate": poi.get("risk_mention_rate"),
+                "queue_mention_rate": poi.get("queue_mention_rate"),
+                "photo_mention_rate": poi.get("photo_mention_rate"),
+                "local_mention_rate": poi.get("local_mention_rate"),
+                "accessibility_mention_rate": poi.get("accessibility_mention_rate"),
+                "year_max": poi.get("year_max"),
+                "risk_signal_level": poi.get("risk_signal_level", ""),
+                "queue_signal_level": poi.get("queue_signal_level", ""),
+                "local_authenticity_level": poi.get("local_authenticity_level", ""),
+                "photo_hotness_level": poi.get("photo_hotness_level", ""),
+                "scenario_tags": poi.get("scenario_tags", ""),
             })
 
         enriched.sort(key=lambda x: x["order"])

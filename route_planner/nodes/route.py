@@ -25,6 +25,15 @@ _SYSTEM_PROMPT = """\
 - queue_minutes_peak > 30 但 queue_minutes_offpeak <= 15 时可安排在非高峰时段
 - 餐饮类优先参考taste_rating和hygiene_rating；环境体验类（文化/娱乐）优先参考decor_rating和service_rating；half_year_sales越高越热门，recommend_count越高口碑越好，trend_tag为"火爆"优先于"经典"优先于"新晋"，review_count越高评分越可信
 - 用户的 food_pref（菜系偏好）和 culture_pref（文化偏好）是选站的首要依据：餐饮站点的 sub_category 应尽量匹配 food_pref，文化/娱乐站点的 sub_category 应尽量匹配 culture_pref
+- 评论信号字段（来自真实用户评论，优先级高于模拟字段，全部应纳入决策）：
+  - year_max (整数2021~2025): 最近一次收到评论的年份。2025=近期仍活跃；<=2022=四年内无新评论，可能已关或口碑下滑，若候选中有更新的选项应降低权重
+  - risk_mention_rate (0~1浮点，全量均值0.6): 负面体验短语占比，低于0.4为优秀，高于0.8有踩雷风险；优先选值更低的POI
+  - queue_mention_rate (0~1浮点，均值0.3): 排队抱怨占比，高于0.5意味着明显排队问题，需在路线安排中考虑（如调整到达时间）
+  - local_mention_rate (0~1浮点，均值0.39): 地道/本土感短语占比，值越高越地道；若用户 prefer_local=true 应优先选高值POI
+  - photo_mention_rate (0~1浮点，均值0.23): 拍照/打卡短语占比，若用户 scenarios 含"打卡拍照"应优先选高值POI
+  - accessibility_mention_rate (0~1浮点，均值0.24): 无障碍/可达性短语占比，若 scenarios 含"家庭親子"应适当偏好高值POI
+  - risk_signal_level / queue_signal_level: 三等分位标签（Low/Medium/High），可辅助确认 float 值的相对位置
+  - scenario_tags: 场合标签（如"情侶約會;朋友聚餐"），与用户 scenarios 匹配时加分
 - 只输出JSON数组，不要有任何额外文字或解释
 """
 
@@ -58,6 +67,17 @@ def _compact(poi: dict) -> dict:
         "business_hours": poi.get("business_hours", ""),
         "lat": poi.get("lat", 0),
         "lng": poi.get("lng", 0),
+        "risk_mention_rate": poi.get("risk_mention_rate"),
+        "queue_mention_rate": poi.get("queue_mention_rate"),
+        "photo_mention_rate": poi.get("photo_mention_rate"),
+        "local_mention_rate": poi.get("local_mention_rate"),
+        "accessibility_mention_rate": poi.get("accessibility_mention_rate"),
+        "year_max": poi.get("year_max"),
+        "risk_signal_level": poi.get("risk_signal_level", ""),
+        "queue_signal_level": poi.get("queue_signal_level", ""),
+        "local_authenticity_level": poi.get("local_authenticity_level", ""),
+        "photo_hotness_level": poi.get("photo_hotness_level", ""),
+        "scenario_tags": poi.get("scenario_tags", ""),
     }
     if poi.get("category") in {"餐饮", "Dining", "餐飲"}:
         result["taste_rating"] = poi.get("taste_rating", 0)

@@ -144,11 +144,17 @@ class RouteState(TypedDict):
   "culture_pref": [],
   "avoid": [],
   "dining_count": 0,
+  "prefer_local": false,
+  "scenarios": [],
   "must_include_categories": ["餐饮"]
 }
 ```
 
-`dining_count` 是整数：仅当用户明确指定餐饮次数时才 > 0（"包括午饭和晚饭"→2）；菜系偏好（"想吃日本料理"）不计入次数，输出 0。
+`dining_count`：仅当用户明确指定餐饮次数时才 > 0（"包括午饭和晚饭"→2）；菜系偏好不计入次数，输出 0。
+
+`prefer_local`：检测"地道/本地/老字号/authentic"等词，为 true 时 POISearchNode 用 `local_mention_rate DESC` 排序。
+
+`scenarios`：从用户话语提取场合列表（情侶約會/朋友聚餐/家庭親子/慶生/商務接待/一人食/打卡拍照），影响 SQL 排序和 LLM 决策。
 
 ---
 
@@ -161,6 +167,13 @@ class RouteState(TypedDict):
 **类别名规范化（`_normalize_cat`）**：`must_include_categories` 中的值可能来自英文模式路线的翻译结果（如 `"Dining"`、`"Culture"`）或繁体（`"餐飲"`），统一规范化为数据库内部的简体值（`"餐饮"`、`"文化"`、`"娱乐"`）再查询，避免 refine 时出现 0 候选。
 
 **召回策略**：
+0. **信号驱动预排序**（ORDER BY 最高优先级，基于真实评论数据）：
+   - `risk_mention_rate ASC`：始终生效，低负面评论优先
+   - `year_max DESC`：始终生效，近年仍有评论的（可能仍营业）优先
+   - `local_mention_rate DESC`：仅当 `prefer_local=true` 时追加
+   - `photo_mention_rate DESC`：仅当 `scenarios` 含"打卡拍照"时追加
+   - `accessibility_mention_rate DESC`：仅当 `scenarios` 含"家庭親子"时追加
+   - `scenario_tags LIKE` 匹配顺序：仅当 `scenarios` 非空时追加
 1. `city LIKE ?` + `area LIKE ?` 模糊匹配
 2. `avg_price_per_person <= budget_per_person × 1.2`（20% 弹性，避免过度截断）
 3. `avoid` 中的子类别通过 `sub_category NOT IN (...)` 过滤排除
@@ -210,6 +223,14 @@ class RouteState(TypedDict):
 | `trend_tag` | 火爆 > 经典 > 新晋，辅助热度决策 |
 | `business_hours` | 营业时间硬约束 |
 | `lat/lng` | 地理相邻性判断 |
+| `risk_mention_rate` | 0~1，负面短语占比，均值0.6；低于0.4优秀，高于0.8有踩雷风险 |
+| `queue_mention_rate` | 0~1，排队抱怨占比，均值0.3；高于0.5意味明显排队问题 |
+| `local_mention_rate` | 0~1，地道/本土感短语占比，均值0.39；prefer_local时应优先高值 |
+| `photo_mention_rate` | 0~1，打卡/拍照短语占比，均值0.23；打卡场景应优先高值 |
+| `accessibility_mention_rate` | 0~1，无障碍/可达性短语占比，均值0.24；家庭親子场景适当偏好高值 |
+| `year_max` | 最近评论年份（2021-2025）；<=2022 的 POI 可能已关/口碑下滑，降低权重 |
+| `scenario_tags` | 场合标签（如"情侶約會;朋友聚餐"），与用户 scenarios 匹配时加分 |
+| `risk_signal_level` / `queue_signal_level` | 三等分位标签（Low/Medium/High），辅助确认 float 相对位置 |
 
 **餐饮数量决策**：
 - 若 `dining_count > 0` → 餐饮站点数量必须恰好等于 `dining_count`
@@ -452,6 +473,27 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `business_hours` | 按 sub_category 分四类生成：all_day（港式/快餐/咖啡，08:00-22:00 变体）、full（粤菜/火锅，11:00-23:00 变体）、split（日本料理/西餐，午市+晚市）、evening（居酒屋/酒吧，17:30-23:30）、brunch（早午餐，08:00-15:00）；hash 变化 ±0-60min |
 
 **迁移流程**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ 服务启动时 `app/main.py` lifespan `_ensure_db()` → `poi.db`（不提交）。`poi.db` 仅在 CSV 比 DB 新时重建。
+
+### 评论信号系统
+
+`poi.csv` 中 18,075 家餐厅额外携带 11 个来自真实评论分析的信号字段，来源为 `POI_profile_extra_keywords.csv`（由 `POI_profile_data_dictionary.docx` 记录生成逻辑）：
+
+| 字段 | 来源字段 | 说明 |
+|---|---|---|
+| `queue_signal_level` | `Queue_Phrases_MentionRate` 三等分位 | Low/Medium/High |
+| `risk_signal_level` | `Risk_Phrases_MentionRate` 三等分位 | Low/Medium/High；High=较多负面评论 |
+| `photo_hotness_level` | `Photo_Checkin_Phrases_MentionRate` 三等分位 | Low/Medium/High |
+| `local_authenticity_level` | `Local_Authenticity_Phrases_MentionRate` 三等分位 | Low/Medium/High |
+| `scenario_tags` | `Scenario_Phrases_Top20` 关键词提取 | "情侶約會;朋友聚餐;家庭親子;慶生;商務接待;一人食" |
+| `queue_risk` | `queue_signal_level` 映射 | 覆盖原 hash mock 值；Low→低、Medium→中、High→高 |
+| `risk_mention_rate` | `Risk_Phrases_MentionRate` 原始值 | 0~1 float，均值0.6 |
+| `queue_mention_rate` | `Queue_Phrases_MentionRate` 原始值 | 0~1 float，均值0.3 |
+| `photo_mention_rate` | `Photo_Checkin_Phrases_MentionRate` 原始值 | 0~1 float，均值0.23 |
+| `local_mention_rate` | `Local_Authenticity_Phrases_MentionRate` 原始值 | 0~1 float，均值0.39 |
+| `accessibility_mention_rate` | `Accessibility_Phrases_MentionRate` 原始值 | 0~1 float，均值0.24 |
+| `year_max` | `year_max` 直接复制 | 最近一次收到评论的年份（2021-2025）；11,197 家为2025 |
+
+**三等分位说明**：Low/Medium/High 是全量 23,541 家餐厅按 MentionRate 值均分三组，代表相对排名而非绝对质量。float 原始值比 level 标签更精确，两者同时使用。
 
 ---
 

@@ -104,6 +104,33 @@ def _amap_search(city: str, area: str, category: str, limit: int = 8) -> list[di
     return result
 
 
+def _signal_order_sql(prefer_local: bool, scenarios: list[str]) -> str:
+    """Priority ORDER BY from review-derived signals (all floats preferred over level strings).
+
+    Fixed ordering applied to every query:
+      1. risk_mention_rate ASC  — low-risk POIs always float to top
+      2. year_max DESC          — prefer recently-reviewed (still open/active)
+    Conditional ordering (only when intent signals are present):
+      3. local_mention_rate DESC   if prefer_local
+      4. photo_mention_rate DESC   if 打卡拍照 in scenarios
+      5. accessibility_mention_rate DESC  if 家庭親子 in scenarios
+      6. scenario_tags CASE match   if any scenario present
+    """
+    parts = []
+    parts.append("COALESCE(risk_mention_rate, 1.0) ASC")
+    parts.append("COALESCE(year_max, 2021) DESC")
+    if prefer_local:
+        parts.append("COALESCE(local_mention_rate, 0) DESC")
+    if "打卡拍照" in scenarios:
+        parts.append("COALESCE(photo_mention_rate, 0) DESC")
+    if "家庭親子" in scenarios:
+        parts.append("COALESCE(accessibility_mention_rate, 0) DESC")
+    if scenarios:
+        like_cases = " ".join(f"WHEN scenario_tags LIKE '%{s}%' THEN {i}" for i, s in enumerate(scenarios))
+        parts.append(f"CASE {like_cases} ELSE {len(scenarios)} END")
+    return ", ".join(parts) + ", " if parts else ""
+
+
 def _query_category(
     city: str,
     area: str,
@@ -113,9 +140,12 @@ def _query_category(
     budget_pp: float,
     time_range: dict | None = None,
     visited_ids: set | None = None,
+    prefer_local: bool = False,
+    scenarios: list | None = None,
     limit: int = 10,
 ) -> tuple[list[dict], bool]:
     """Return (results, used_amap_fallback)."""
+    scenarios = scenarios or []
     conn = sqlite3.connect(_DB_PATH)
     conn.row_factory = sqlite3.Row
 
@@ -127,6 +157,7 @@ def _query_category(
         f"WHEN sub_category LIKE '%{p}%' THEN {i}" for i, p in enumerate(pref_sub_categories)
     )
     pref_order = f"CASE {pref_cases} ELSE {len(pref_sub_categories)} END," if pref_cases else ""
+    signal_order = _signal_order_sql(prefer_local, scenarios)
 
     if avoid_sub_categories:
         placeholders = ",".join("?" * len(avoid_sub_categories))
@@ -143,7 +174,7 @@ def _query_category(
           AND category = ?
           AND avg_price_per_person <= ?
           {avoid_clause}
-        ORDER BY {pref_order} rating DESC
+        ORDER BY {signal_order}{pref_order} rating DESC
         LIMIT ?
     """
     params = [city_pat, area_pat, category, price_cap] + avoid_params + [limit]
@@ -157,7 +188,7 @@ def _query_category(
               AND category = ?
               AND avg_price_per_person <= ?
               {avoid_clause}
-            ORDER BY {pref_order} rating DESC
+            ORDER BY {signal_order}{pref_order} rating DESC
             LIMIT ?
         """
         params_fb = [city_pat, category, price_cap] + avoid_params + [limit]
@@ -216,12 +247,16 @@ class POISearchNode(BaseNode):
         candidates: dict[str, list] = {}
         used_amap_cats: list[str] = []
 
+        prefer_local = intent.get("prefer_local", False)
+        scenarios    = intent.get("scenarios", [])
+
         for cat in must_cats:
             db_cat = _normalize_cat(cat)
             pref = food_pref if db_cat == "餐饮" else (culture_pref if db_cat in ("文化", "娱乐") else [])
             rows, used_amap = _query_category(
                 city, area, db_cat, pref, avoid, budget_pp,
                 time_range=time_range, visited_ids=visited_ids,
+                prefer_local=prefer_local, scenarios=scenarios,
             )
             candidates[db_cat] = rows
             if used_amap:
