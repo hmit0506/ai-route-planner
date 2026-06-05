@@ -14,6 +14,17 @@ import route_planner.i18n as i18n
 _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "poi.db")
 _BIZ_SLOT = re.compile(r"(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})")
 
+# Normalize translated/Traditional category names back to the DB's internal Simplified values
+_CAT_NORMALIZE: dict[str, str] = {
+    "Dining": "餐饮", "Culture": "文化", "Entertainment": "娱乐",
+    "Nature": "自然", "Shopping": "购物",
+    "餐飲": "餐饮", "娛樂": "娱乐", "購物": "购物",
+}
+
+
+def _normalize_cat(cat: str) -> str:
+    return _CAT_NORMALIZE.get(cat, cat)
+
 
 def _is_open(business_hours: str, time_range: dict | None) -> bool:
     if not business_hours or not time_range:
@@ -195,14 +206,15 @@ class POISearchNode(BaseNode):
         used_amap_cats: list[str] = []
 
         for cat in must_cats:
-            pref = food_pref if cat == "餐饮" else (culture_pref if cat in ("文化", "娱乐") else [])
+            db_cat = _normalize_cat(cat)
+            pref = food_pref if db_cat == "餐饮" else (culture_pref if db_cat in ("文化", "娱乐") else [])
             rows, used_amap = _query_category(
-                city, area, cat, pref, avoid, budget_pp,
+                city, area, db_cat, pref, avoid, budget_pp,
                 time_range=time_range, visited_ids=visited_ids,
             )
-            candidates[cat] = rows
+            candidates[db_cat] = rows
             if used_amap:
-                used_amap_cats.append(cat)
+                used_amap_cats.append(db_cat)
 
         lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))

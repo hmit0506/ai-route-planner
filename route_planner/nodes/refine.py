@@ -19,6 +19,7 @@ from typing import Dict, Any
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 from route_planner.llm import call_llm
+from route_planner.nodes.poi_search import _normalize_cat
 
 _SYSTEM_PROMPT = """\
 你是一个路线规划助手，负责处理用户的局部替换请求。
@@ -75,7 +76,7 @@ class RefineNode(BaseNode):
         refine_meta = call_llm(messages, parse_json=True)
 
         replace_order = int(refine_meta.get("replace_order", 1))
-        replace_category = refine_meta.get("category", "餐饮")
+        replace_category = _normalize_cat(refine_meta.get("category", "餐饮"))
 
         intent["_refine"] = refine_meta
 
@@ -102,7 +103,7 @@ class RefineNode(BaseNode):
         intent["area"] = area
         intent["budget_per_person"] = budget_pp
         # POISearchNode uses must_include_categories to know what to search
-        intent["must_include_categories"] = [replace_category]
+        intent["must_include_categories"] = [_normalize_cat(replace_category)]
 
         # locked_nodes: 0-based indices of POIs that should NOT be replaced
         locked_nodes = [

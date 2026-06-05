@@ -15,6 +15,7 @@ from typing import Dict, Any
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
 import route_planner.i18n as i18n
+from route_planner.nodes.poi_search import _normalize_cat
 
 
 def _passes_constraints(poi: dict, constraints: dict) -> bool:
@@ -49,8 +50,8 @@ class RefineSelectNode(BaseNode):
             for p in route
         }
 
-        # Find replacement category's candidates
-        replace_category = refine_meta.get("category", "")
+        # Find replacement category's candidates (normalize translated names to internal Chinese)
+        replace_category = _normalize_cat(refine_meta.get("category", ""))
         pool = candidates.get(replace_category, [])
         if not pool:
             # Fallback: search across all candidate categories

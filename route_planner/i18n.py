@@ -64,6 +64,8 @@ _FULFILLMENT = {
         "dining_ok":       "餐饮安排 ✓ （{n}个）",
         "dining_mismatch": "餐饮不足：要求{req}个，实际安排{got}个",
         "dining_tip":      "可说「再加一家餐厅」进行调整",
+        "dining_excess":   "餐饮站点过多：计划{req}个，实际安排{got}个",
+        "dining_excess_tip": "可说「换一个餐厅为景点」进行调整",
         "food_ok":         "餐饮偏好 {pref} ✓ （{names}）",
         "food_miss":       "未找到 {pref} 餐厅，以 {sub}（{names}）替代",
         "food_tip":        "该商圈暂无 {cuisine}；可说「换一家 {cuisine} 餐厅」",
@@ -77,6 +79,8 @@ _FULFILLMENT = {
         "dining_ok":       "餐飲安排 ✓ （{n}個）",
         "dining_mismatch": "餐飲不足：要求{req}個，實際安排{got}個",
         "dining_tip":      "可說「再加一家餐廳」進行調整",
+        "dining_excess":   "餐飲站點過多：計劃{req}個，實際安排{got}個",
+        "dining_excess_tip": "可說「換一個餐廳為景點」進行調整",
         "food_ok":         "餐飲偏好 {pref} ✓ （{names}）",
         "food_miss":       "未找到 {pref} 餐廳，以 {sub}（{names}）替代",
         "food_tip":        "此商圈暫無 {cuisine}；可說「換一家 {cuisine} 餐廳」",
@@ -90,6 +94,8 @@ _FULFILLMENT = {
         "dining_ok":       "Dining ✓ ({n} stop(s))",
         "dining_mismatch": "Dining mismatch: requested {req}, got {got}",
         "dining_tip":      "Say 'add another restaurant' to adjust",
+        "dining_excess":   "Too many dining stops: planned {req}, got {got}",
+        "dining_excess_tip": "Say 'swap a restaurant for a cultural stop'",
         "food_ok":         "{pref} ✓ ({names})",
         "food_miss":       "No {pref} found, substituted with {sub} ({names})",
         "food_tip":        "No {cuisine} in this area; say 'swap a {cuisine} restaurant'",
@@ -198,6 +204,18 @@ _SUB_CATEGORY_EN: dict[str, str] = {
     # Casual
     "咖啡店": "Café", "甜品": "Dessert", "麵包店": "Bakery",
     "快餐": "Fast Food", "酒吧": "Bar",
+    # Cultural / entertainment (for culture_pref display in English mode)
+    "博物館": "Museum", "藝術館": "Art Gallery", "藝術": "Art",
+    "文化景點": "Cultural Attraction", "文化景点": "Cultural Attraction",
+    "歷史建築": "Historic Site", "历史建筑": "Historic Site",
+    "宗教古蹟": "Religious Heritage",
+    "旅遊景點": "Tourist Attraction", "旅游景点": "Tourist Attraction",
+    "主要景点": "Landmark",
+    "城市地標": "City Landmark", "觀景地標": "Viewpoint",
+    "觀光纜車": "Cable Car", "創意街區": "Creative District",
+    "表演場地": "Performance Venue", "露天劇場": "Open-Air Theatre",
+    "公園": "Park", "郊野公园": "Country Park", "泳灘": "Beach",
+    "海濱花園": "Waterfront Garden", "大學校園": "University Campus",
 }
 
 _CATEGORY_EN: dict[str, str] = {

@@ -104,10 +104,14 @@ def _nav_url(poi: dict) -> str:
 
 def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     """Compare actual route against user intent, report satisfied/unmatched/tips."""
-    food_pref      = intent.get("food_pref", [])
-    culture_pref   = intent.get("culture_pref", [])
+    # Translate pref labels to output language so messages don't mix languages
+    def _xlat(val: str) -> str:
+        return i18n.translate_field("sub_category", val, lang)
+
+    food_pref      = [_xlat(p) for p in intent.get("food_pref", [])]
+    culture_pref   = [_xlat(p) for p in intent.get("culture_pref", [])]
     dining_count_r = intent.get("dining_count", 0)
-    avoid          = intent.get("avoid", [])
+    avoid          = [_xlat(a) for a in intent.get("avoid", [])]
     sep = " / " if i18n.normalize(lang) == "en" else "、"
 
     satisfied, unmatched, tips = [], [], []
@@ -117,9 +121,13 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     if dining_count_r > 0:
         if len(dining_pois) == dining_count_r:
             satisfied.append(i18n.f("dining_ok", lang, n=dining_count_r))
-        else:
+        elif len(dining_pois) < dining_count_r:
             unmatched.append(i18n.f("dining_mismatch", lang, req=dining_count_r, got=len(dining_pois)))
             tips.append(i18n.f("dining_tip", lang))
+        else:
+            # Too many dining stops
+            unmatched.append(i18n.f("dining_excess", lang, req=dining_count_r, got=len(dining_pois)))
+            tips.append(i18n.f("dining_excess_tip", lang))
 
     # Check food_pref matching
     if food_pref:
