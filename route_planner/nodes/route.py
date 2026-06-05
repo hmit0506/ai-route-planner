@@ -31,7 +31,7 @@ _SYSTEM_PROMPT = """\
 _CORRECTION_PROMPT = """\
 你上一次的选择存在问题：{reason}
 
-请重新选择，严格遵守上述规则，只输出JSON数组。
+{extra}请重新选择，只输出JSON数组，不要有任何额外文字。
 """
 
 
@@ -174,23 +174,59 @@ class RouteNode(BaseNode):
         lang = state.get("language", "zh-TW")
         updates = list(state.get("stream_updates", []))
 
+        _DINING_CATS = {"餐饮", "Dining", "餐飲"}
+
+        def _enrich_category(sel: list) -> None:
+            for item in sel:
+                if "category" not in item:
+                    poi = poi_lookup.get(item.get("poi_id", ""), {})
+                    item["category"] = poi.get("category", "")
+
+        def _force_dining_count(sel: list, expected: int) -> list:
+            """Code-level enforcement: trim or leave dining stops to match expected."""
+            dining  = [s for s in sel if s.get("category") in _DINING_CATS]
+            non_din = [s for s in sel if s.get("category") not in _DINING_CATS]
+            if len(dining) > expected:
+                # Keep highest-rated dining stops
+                dining.sort(key=lambda x: -poi_lookup.get(x.get("poi_id",""), {}).get("rating", 0))
+                dining = dining[:expected]
+            result = dining + non_din
+            for idx, item in enumerate(result, 1):
+                item["order"] = idx
+            return result
+
         # Self-check: validate and retry once if needed
+        _enrich_category(selection)
         error = _validate(selection, intent, poi_lookup, lang)
         if error:
             updates.append(i18n.step("route_warn", lang, reason=error))
+            # Build a more specific correction hint for dining_count violations
+            expected_dining = intent.get("dining_count", 0)
+            if expected_dining > 0:
+                dining_ids = [p["id"] for pois in candidates.values() for p in pois
+                              if p.get("category") in _DINING_CATS]
+                extra = (
+                    f"特别注意：餐饮站点数量必须恰好为 {expected_dining} 个。"
+                    f"候选中的餐饮POI id为：{dining_ids[:10]}。"
+                    f"从中选恰好 {expected_dining} 个，其余站点选非餐饮类POI。\n"
+                )
+            else:
+                extra = ""
             correction_msg = {
                 "role": "assistant",
                 "content": json.dumps(selection, ensure_ascii=False),
             }
             retry_msg = {
                 "role": "user",
-                "content": _CORRECTION_PROMPT.format(reason=error),
+                "content": _CORRECTION_PROMPT.format(reason=error, extra=extra),
             }
             selection = call_llm(messages + [correction_msg, retry_msg], parse_json=True)
-            for item in selection:
-                if "category" not in item:
-                    poi = poi_lookup.get(item.get("poi_id", ""), {})
-                    item["category"] = poi.get("category", "")
+            _enrich_category(selection)
+            # Code-level enforcement: if dining_count still wrong after retry, force it
+            if expected_dining > 0:
+                actual = sum(1 for s in selection if s.get("category") in _DINING_CATS)
+                if actual != expected_dining:
+                    selection = _force_dining_count(selection, expected_dining)
         else:
             updates.append(i18n.step("route_ok", lang))
 

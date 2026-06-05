@@ -149,6 +149,7 @@ def _query_category(
     params = [city_pat, area_pat, category, price_cap] + avoid_params + [limit]
     rows = conn.execute(sql, params).fetchall()
 
+    used_city_fallback = False
     if len(rows) < 3 and area:
         sql_fb = f"""
             SELECT * FROM pois
@@ -161,9 +162,17 @@ def _query_category(
         """
         params_fb = [city_pat, category, price_cap] + avoid_params + [limit]
         rows = conn.execute(sql_fb, params_fb).fetchall()
+        used_city_fallback = True
 
     conn.close()
     results = [dict(r) for r in rows]
+
+    # If we fell back to city-level AND none of the results match the target area,
+    # treat the local DB as "no coverage" for this area and try Amap directly.
+    area_mismatch = (
+        used_city_fallback and area and
+        not any(area in (r.get("area") or "") for r in results)
+    )
 
     # Filter visited POIs
     if visited_ids:
@@ -175,14 +184,16 @@ def _query_category(
         if len(open_results) >= 3:
             results = open_results
 
-    # Amap fallback when DB is insufficient
+    # Amap fallback: (a) DB insufficient, or (b) all results are from wrong area
     used_amap = False
-    if len(results) < 3:
+    if len(results) < 3 or area_mismatch:
         amap_rows = _amap_search(city, area, category)
         if visited_ids:
             amap_rows = [r for r in amap_rows if r["id"] not in visited_ids]
-        results = results + amap_rows
-        used_amap = bool(amap_rows)
+        if amap_rows:
+            # Prefer Amap results over wrong-area DB results when area mismatch
+            results = amap_rows if area_mismatch else results + amap_rows
+            used_amap = True
 
     return results, used_amap
 

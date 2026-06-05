@@ -108,6 +108,13 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     def _xlat(val: str) -> str:
         return i18n.translate_field("sub_category", val, lang)
 
+    # Localize POI names: zh-CN converts Traditional→Simplified proper nouns
+    def _name(poi: dict) -> str:
+        n = poi.get("name", "")
+        if i18n.normalize(lang) == "zh-CN":
+            return i18n.to_simplified(n)
+        return n
+
     food_pref      = [_xlat(p) for p in intent.get("food_pref", [])]
     culture_pref   = [_xlat(p) for p in intent.get("culture_pref", [])]
     dining_count_r = intent.get("dining_count", 0)
@@ -135,9 +142,9 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
         unmatched_dining = [p for p in dining_pois if not p.get("pref_matched")]
         if matched_dining:
             satisfied.append(i18n.f("food_ok", lang,
-                pref=sep.join(food_pref), names=sep.join(p["name"] for p in matched_dining)))
+                pref=sep.join(food_pref), names=sep.join(_name(p) for p in matched_dining)))
         if unmatched_dining:
-            names = sep.join(p["name"] for p in unmatched_dining)
+            names = sep.join(_name(p) for p in unmatched_dining)
             subs  = sep.join(p.get("sub_category", "") for p in unmatched_dining)
             unmatched.append(i18n.f("food_miss", lang, pref=sep.join(food_pref), sub=subs, names=names))
             tips.append(i18n.f("food_tip", lang, cuisine=sep.join(food_pref)))
@@ -149,9 +156,9 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
         unmatched_cultural = [p for p in cultural_pois if not p.get("pref_matched")]
         if matched_cultural:
             satisfied.append(i18n.f("culture_ok", lang,
-                pref=sep.join(culture_pref), names=sep.join(p["name"] for p in matched_cultural)))
+                pref=sep.join(culture_pref), names=sep.join(_name(p) for p in matched_cultural)))
         if unmatched_cultural:
-            names = sep.join(p["name"] for p in unmatched_cultural)
+            names = sep.join(_name(p) for p in unmatched_cultural)
             subs  = sep.join(p.get("sub_category", "") for p in unmatched_cultural)
             unmatched.append(i18n.f("culture_miss", lang, pref=sep.join(culture_pref), sub=subs, names=names))
             tips.append(i18n.f("culture_tip", lang, pref=sep.join(culture_pref)))
@@ -160,7 +167,7 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     if avoid:
         violated = [p for p in route if any(a in p.get("sub_category", "") for a in avoid)]
         if violated:
-            names = sep.join(p["name"] for p in violated)
+            names = sep.join(_name(p) for p in violated)
             unmatched.append(i18n.f("avoid_violated", lang, avoid=sep.join(avoid), names=names))
             tips.append(i18n.f("avoid_tip", lang, names=names))
 

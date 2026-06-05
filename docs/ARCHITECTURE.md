@@ -169,7 +169,7 @@ class RouteState(TypedDict):
 6. Fallback：若命中 < 3 个，退化为仅 city 过滤（放宽商圈限制）
 7. **营业时间过滤**：按 `intent.time_range` 对 `business_hours` 字段做时间段重叠检查（解析 `HH:MM-HH:MM` 格式），过滤后不足 3 条则 soft fallback 保留原始结果
 8. **已访问 POI 过滤**：从 `user_memory.visited_poi_ids` 中排除已去过的 POI，避免重复推荐
-9. **高德 Place Search 兜底**：上述所有过滤后仍不足 3 条时，调用高德 Place Search API（`/v3/place/text`）补充候选，并在 SSE 步骤流中提示；`AMAP_API_KEY` 未设置时跳过
+9. **高德 Place Search 兜底**：两种触发条件：① 上述过滤后仍 < 3 条；② 城市级 fallback 后结果中无一条的 `area` 匹配目标区域（`area_mismatch`，说明本地库对该区域无覆盖，如偏远小岛），此时以 Amap 结果替代错误区域的 DB 结果。`AMAP_API_KEY` 未设置时跳过。
 
 ---
 
@@ -215,7 +215,10 @@ class RouteState(TypedDict):
 - 若 `dining_count > 0` → 餐饮站点数量必须恰好等于 `dining_count`
 - 若 `dining_count == 0` → 合理安排即可，保证行程有非餐饮类站点
 
-**自我检查机制**：LLM 输出后，代码验证：① 站点数 ≥ 3；② 餐饮数量匹配 dining_count；③ 非全餐饮。若不通过，携带纠正说明触发一次重试，并在 SSE stream 中显示 `⚠️ 自检发现问题`。
+**自我检查机制**：LLM 输出后，代码验证：① 站点数 ≥ 3；② 餐饮数量匹配 dining_count；③ 非全餐饮。若不通过：
+1. 生成精确的纠正 prompt（dining_count 违反时会列出所有餐饮候选 POI ID，要求精确选 N 个）
+2. 携带纠正说明触发一次重试，SSE stream 显示 `⚠️ 自检发现问题`
+3. 重试后若 dining_count 仍不符，**代码强制截断**（`_force_dining_count`）：保留评分最高的 N 个餐饮站，移除多余的，确保最终结果与约束一致
 
 **用户记忆注入**：若 `user_memory` 非空，`build_route_hint()` 生成简短软约束提示附加到 user message（历史菜系偏好、历史忌口补充、历史人均消费参考）；不强制覆盖当前 intent，仅在 intent 未指定时起作用。
 
@@ -281,6 +284,8 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 - `tips`：多轮对话调整建议（如「换一家川菜餐厅」）
 
 **pref 语言一致性**：`food_pref`/`culture_pref`/`avoid` 值在嵌入 fulfillment 模板前先调用 `translate_field("sub_category", val, lang)` 翻译，确保消息语言与 `language` 字段一致（避免 zh-CN 模式输出繁体「火鍋」、英文模式输出中文类别名「藝術館」）。
+
+**POI 名字本地化（`_name()`）**：fulfillment 消息中嵌入的 POI 名字通过 `_name(poi)` 输出——zh-CN 模式调用 `to_simplified()` 将繁体专有名词转简体（如「香港歷史博物館」→「香港历史博物馆」），其他语言保持原始名字不变（英文界面保留中文专有名词，属预期行为）。
 
 **dining_excess 分支**：`dining_count` 约束在两个方向均有专属消息——实际餐饮站点少于预期触发 `dining_mismatch`（"不足"），多于预期触发 `dining_excess`（"过多"），提示方向相反，均覆盖三语。
 
@@ -439,7 +444,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | 字段 | 填充方式 |
 |---|---|
 | `avg_price_per_person` | 拆分 sub_category 所有 tag，取最高价映射值（港式茶餐廳 65、日本料理 200、扒房 500…），130 占比从 69% 降至 8.7% |
-| `queue_risk` / `queue_minutes` | review_count 达上限(50) 且 taste ≥ 4.0 → 高；≥ 30 且 ≥ 3.8 → 中；其余 低；minutes 在各档内以 poi_id hash 加变化（高: 20-45min，中: 10-25min，低: 0-10min） |
+| `queue_risk` / `queue_minutes` | 餐饮：review_count ≥ 50 且 taste ≥ 4.0 → 高；≥ 30 且 ≥ 3.8 → 中；其余 低；minutes 在各档内以 poi_id hash 加变化。文化/自然类：公園、泳灘、郊野公园、海濱花園、觀景地標 → 固定为 低（无排队系统）；創意街區、露天劇場 → 中；其余按评论量计算。共修正 103 条景点 POI。|
 | `trend_tag` | open_since 2023+ → 新晋；2024+2025 评论 ≥ 2× 前期 → 火爆；其余 经典 |
 | `half_year_sales` | (2024 + 2025 评论数) × 200（相对代理值） |
 | `recommend_count` | 5年评论总数（真实数据，范围 3-50，代理口碑热度） |

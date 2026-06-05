@@ -325,6 +325,7 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] RefineNode 新增 prefer_sub_category 约束（支持"换一家日本料理"等带菜系的替换）；prefer_sub_category 传入 POISearchNode 偏好排序 + RefineSelectNode 优先筛选
 - [x] refine 流程结束后补 user_memory.update()；call_llm 异常捕获扩至 Exception（覆盖 JSONDecodeError）；高德兜底/替换成功/失败 SSE 消息全部 i18n 化；enrich_done 三语补全
 - [x] 三语 20 案例系统测试 + 4 项 bug 修复：① 英文 refine 0 候选（_normalize_cat 规范化 Dining→餐饮）；② zh-CN fulfillment 含繁体（pref 值在 _build_fulfillment 中先翻译）；③ 英文模式文化类 sub_category 无英译（扩展 _SUB_CATEGORY_EN 15+ 词条）；④ dining_excess 消息方向反（新增 dining_excess/dining_excess_tip 三语 key）
+- [x] 三语 50 案例深度测试 + 4 项修复：① RouteNode dining_count 强制执行（代码级截断 + 精确 correction prompt）；② zh-CN fulfillment POI 名字繁→简（`_name()` 辅助函数）；③ 文化类 POI 排队风险修正（103 条公园/海滩/郊野公园从"高"修为"低"）；④ POISearch 区域无覆盖时对所有类别触发 Amap（area_mismatch 检测）
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交
