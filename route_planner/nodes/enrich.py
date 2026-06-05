@@ -29,15 +29,19 @@ def _trend_tag(poi: dict) -> str:
     return tag
 
 
+_DINING_CATS = {"餐饮", "Dining", "餐飲"}
+_CULTURE_CATS = {"文化", "娱乐", "自然", "Culture", "Entertainment", "Nature"}
+
+
 def _check_pref_match(poi: dict, food_pref: list, culture_pref: list) -> bool:
     """Return True if this POI's sub_category matches user's relevant preference."""
     sub = poi.get("sub_category", "")
     cat = poi.get("category", "")
-    if cat == "餐饮" and food_pref:
+    if cat in _DINING_CATS and food_pref:
         return any(p in sub for p in food_pref)
-    if cat in ("文化", "娱乐", "自然") and culture_pref:
+    if cat in _CULTURE_CATS and culture_pref:
         return any(p in sub for p in culture_pref)
-    return True  # No preference to check → considered matched
+    return True
 
 
 class EnrichNode(BaseNode):

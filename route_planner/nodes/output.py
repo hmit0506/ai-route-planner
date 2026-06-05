@@ -113,7 +113,7 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     satisfied, unmatched, tips = [], [], []
 
     # Check dining_count
-    dining_pois = [p for p in route if p.get("category") == "餐饮"]
+    dining_pois = [p for p in route if p.get("category") in _DINING_CATS]
     if dining_count_r > 0:
         if len(dining_pois) == dining_count_r:
             satisfied.append(i18n.f("dining_ok", lang, n=dining_count_r))
@@ -136,7 +136,7 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
 
     # Check culture_pref matching
     if culture_pref:
-        cultural_pois    = [p for p in route if p.get("category") in ("文化", "娱乐", "自然")]
+        cultural_pois    = [p for p in route if p.get("category") in ("文化", "娱乐", "自然", "Culture", "Entertainment", "Nature")]
         matched_cultural   = [p for p in cultural_pois if p.get("pref_matched")]
         unmatched_cultural = [p for p in cultural_pois if not p.get("pref_matched")]
         if matched_cultural:
@@ -159,13 +159,16 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
     return {"satisfied": satisfied, "unmatched": unmatched, "tips": tips}
 
 
+_DINING_CATS = {"餐饮", "Dining", "餐飲"}
+
+
 def _build_summary(route: list, lang: str = "zh-TW") -> str:
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
     gb_count = sum(1 for r in route if r.get("has_group_buy"))
     budget_used = sum(
         (r.get("group_buy") or {}).get("current_price", 0) or r.get("avg_price_per_person", 0)
         for r in route
-        if r.get("category") == "餐饮"
+        if r.get("category") in _DINING_CATS
     )
     return i18n.summary(len(route), total_mins, int(budget_used), gb_count, lang)
 

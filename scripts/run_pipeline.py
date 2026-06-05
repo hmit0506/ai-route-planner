@@ -16,19 +16,35 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 from route_planner.graph import build_graph
 from route_planner.state import RouteState
 
-DEFAULT_INPUT = "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点"
+DEFAULT_INPUT = "旺角附近下午，想吃日本料理，預算400港幣"
 
 user_input = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_INPUT
-print(f"\n用户输入: {user_input}\n")
+
+# Auto-detect language from input: if mostly ASCII → English, else Traditional Chinese
+def _detect_lang(text: str) -> str:
+    ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
+    if ascii_ratio > 0.8:
+        return "en"
+    # Simplified Chinese characters are in range 0x4E00-0x9FFF but so are Traditional;
+    # check for simplified-only characters as a heuristic
+    simplified_chars = set("简体繁体规划预算吃饭餐饮")
+    if any(c in simplified_chars for c in text):
+        return "zh-CN"
+    return "zh-TW"
+
+language = sys.argv[2] if len(sys.argv) > 2 else _detect_lang(user_input)
+print(f"\n用户输入: {user_input}  [language={language}]\n")
 
 initial_state: RouteState = {
     "user_input": user_input,
+    "language": language,
     "intent": {},
     "candidates": {},
     "route": [],
     "locked_nodes": [],
     "map_url": "",
     "summary": "",
+    "fulfillment_notes": {},
     "conversation_history": [],
     "stream_updates": [],
 }
