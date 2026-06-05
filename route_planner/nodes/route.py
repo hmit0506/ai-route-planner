@@ -20,9 +20,9 @@ _SYSTEM_PROMPT = """\
 - stay_minutes参考：正餐60-120，博物馆/景点60-90，书店/街区30-60，咖啡/茶饮20-40
 - 所有stay_minutes之和控制在 duration_hours×60 的75%以内（留出交通时间）
 - 预算优先用group_buy_price（团购实付价），无团购才用avg_price_per_person；总价不超budget_per_person
-- 预算有限时优先选value_rating高的POI；review_count < 100时评分可信度低，谨慎选入
+- 预算有限时优先选value_rating高的POI；recommend_count越高口碑越好，可作为次要排序依据
 - queue_minutes_peak > 30 但 queue_minutes_offpeak <= 15 时可安排在非高峰时段
-- 餐饮类优先参考taste_rating；环境体验类（文化/娱乐）优先参考decor_rating和service_rating；半年销量half_year_sales越高越热门，同等条件下优先高销量
+- 餐饮类优先参考taste_rating和hygiene_rating；环境体验类（文化/娱乐）优先参考decor_rating和service_rating；half_year_sales越高越热门，recommend_count越高口碑越好，trend_tag为"火爆"优先于"经典"优先于"新晋"，review_count越高评分越可信
 - 用户的 food_pref（菜系偏好）和 culture_pref（文化偏好）是选站的首要依据：餐饮站点的 sub_category 应尽量匹配 food_pref，文化/娱乐站点的 sub_category 应尽量匹配 culture_pref
 - 只输出JSON数组，不要有任何额外文字或解释
 """
@@ -43,14 +43,17 @@ def _compact(poi: dict) -> dict:
         "sub_category": poi.get("sub_category", ""),
         "area": poi.get("area", ""),
         "rating": poi.get("rating", 0),
-        "review_count": poi.get("review_count", 0),
         "value_rating": poi.get("value_rating", 0),
+        "hygiene_rating": poi.get("hygiene_rating", 0),
         "avg_price_per_person": poi.get("avg_price_per_person", 0),
         "group_buy_price": gb_price,
         "queue_risk": poi.get("queue_risk", "低"),
         "queue_minutes_peak": poi.get("queue_minutes_peak", 0),
         "queue_minutes_offpeak": poi.get("queue_minutes_offpeak", 0),
         "half_year_sales": poi.get("half_year_sales", 0),
+        "recommend_count": poi.get("recommend_count", 0),
+        "review_count": poi.get("review_count", 0),
+        "trend_tag": poi.get("trend_tag", ""),
         "business_hours": poi.get("business_hours", ""),
         "lat": poi.get("lat", 0),
         "lng": poi.get("lng", 0),

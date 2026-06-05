@@ -88,6 +88,7 @@ class EnrichNode(BaseNode):
                 "service_rating": poi.get("service_rating", 0),
                 "hygiene_rating": poi.get("hygiene_rating", 0),
                 "half_year_sales": poi.get("half_year_sales", 0),
+                "recommend_count": poi.get("recommend_count", 0),
                 "avg_price_per_person": poi.get("avg_price_per_person", 0),
                 "queue_risk": tf("queue_risk", poi.get("queue_risk", "低")),
                 "queue_risk_tip": i18n.queue_tip(poi, lang),

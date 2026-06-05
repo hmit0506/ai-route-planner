@@ -378,7 +378,7 @@ def _trend(poi_id, open_since, yearly_counts: dict) -> tuple[str, int, int]:
         tag = "经典"
 
     half_year_sales = recent * 200   # proxy: each review ≈ 200 actual visits
-    recommend_count = total * 150
+    recommend_count = total           # total reviews across all years = real recommendation proxy
 
     return tag, half_year_sales, recommend_count
 
