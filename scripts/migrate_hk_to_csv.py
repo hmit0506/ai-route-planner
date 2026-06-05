@@ -331,14 +331,21 @@ _DEFAULT_PRICE = 130
 # ---------------------------------------------------------------------------
 # Queue risk
 # ---------------------------------------------------------------------------
-def _queue_risk(review_count, taste_rating):
+def _queue_risk(poi_id, review_count, taste_rating):
+    import hashlib
+    h = int(hashlib.md5(str(poi_id).encode()).hexdigest(), 16)
     rc = review_count or 0
     tr = taste_rating or 0
     if rc >= 50 and tr >= 4.0:
-        return "高", 30, 10
+        peak    = 20 + (h % 26)   # 20-45 min
+        offpeak = 5  + (h % 11)   # 5-15 min
+        return "高", peak, offpeak
     if rc >= 30 and tr >= 3.8:
-        return "中", 15, 5
-    return "低", 5, 0
+        peak    = 10 + (h % 16)   # 10-25 min
+        offpeak = 3  + (h % 8)    # 3-10 min
+        return "中", peak, offpeak
+    peak = h % 11                  # 0-10 min
+    return "低", peak, 0
 
 # ---------------------------------------------------------------------------
 # Trend tag
@@ -432,8 +439,10 @@ def main():
         rc      = int(row.get("review_count") or 0)
         rating  = round((taste + decor + service + hygiene + value) / 5, 1) if taste else 0.0
 
-        price   = _PRICE_MAP.get(sub_cat, _DEFAULT_PRICE)
-        risk, peak, offpeak = _queue_risk(rc, taste)
+        # Take the highest price across all compound sub_category tags
+        tag_prices = [_PRICE_MAP.get(t.strip(), 0) for t in sub_cat.split("、")]
+        price = max((p for p in tag_prices if p > 0), default=_DEFAULT_PRICE)
+        risk, peak, offpeak = _queue_risk(poi_id, rc, taste)
         tag, hys, rec = _trend(poi_id, row.get("open_since"), yearly_counts)
 
         def _str(val) -> str:
@@ -474,7 +483,8 @@ def main():
         })
 
     df_out = pd.DataFrame(rows)
-    df_out = df_out[df_out["name"].str.strip().astype(bool)]  # drop rows with empty name
+    df_out = df_out[df_out["name"].str.strip().astype(bool)]
+    df_out = df_out[df_out["taste_rating"] > 0]  # drop rows with missing taste data
     df_out.to_csv(_OUT_CSV, index=False, encoding="utf-8")
     print(f"\nDone: {len(df_out)} POIs written to {_OUT_CSV}")
 

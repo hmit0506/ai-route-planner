@@ -22,7 +22,7 @@ _SYSTEM_PROMPT = """\
 - 预算优先用group_buy_price（团购实付价），无团购才用avg_price_per_person；总价不超budget_per_person
 - 预算有限时优先选value_rating高的POI；review_count < 100时评分可信度低，谨慎选入
 - queue_minutes_peak > 30 但 queue_minutes_offpeak <= 15 时可安排在非高峰时段
-- 餐饮类优先参考taste_rating；half_year_sales越高越热门，同等条件下优先高销量
+- 餐饮类优先参考taste_rating；环境体验类（文化/娱乐）优先参考decor_rating和service_rating；半年销量half_year_sales越高越热门，同等条件下优先高销量
 - 用户的 food_pref（菜系偏好）和 culture_pref（文化偏好）是选站的首要依据：餐饮站点的 sub_category 应尽量匹配 food_pref，文化/娱乐站点的 sub_category 应尽量匹配 culture_pref
 - 只输出JSON数组，不要有任何额外文字或解释
 """
@@ -55,8 +55,11 @@ def _compact(poi: dict) -> dict:
         "lat": poi.get("lat", 0),
         "lng": poi.get("lng", 0),
     }
-    if poi.get("category") == "餐饮":
+    if poi.get("category") in {"餐饮", "Dining", "餐飲"}:
         result["taste_rating"] = poi.get("taste_rating", 0)
+    else:
+        result["decor_rating"]   = poi.get("decor_rating", 0)
+        result["service_rating"] = poi.get("service_rating", 0)
     return result
 
 
