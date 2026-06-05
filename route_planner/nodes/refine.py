@@ -106,7 +106,13 @@ class RefineNode(BaseNode):
             (p.get("name", "") for p in route if p.get("order", 0) == replace_order),
             f"第{replace_order}个地点",
         )
-        updates.append(f"正在替换：{poi_name}（搜索 {city}{area} 的{replace_category}候选）")
+        lang = state.get("language", "zh-TW")
+        import route_planner.i18n as _i18n
+        updates.append(_i18n.step("refine_start", lang,
+            name=poi_name,
+            city=_i18n.translate_field("city", city, lang),
+            area=_i18n.translate_field("area", area, lang),
+            cat=_i18n.translate_field("category", replace_category, lang)))
 
         return {
             **state,

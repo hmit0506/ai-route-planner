@@ -15,16 +15,14 @@ from route_planner.i18n import normalize as _norm, LANG_NAME
 def _parse_cot_response(raw: str) -> Tuple[str, dict]:
     """Extract reasoning text and JSON from CoT response."""
     raw = raw.strip()
-    # Find the JSON block (starts with { or ```json)
     json_match = re.search(r"(\{[\s\S]+\})", raw)
     if not json_match:
         return "", json.loads(raw)
     json_str = json_match.group(1)
     intent = json.loads(json_str)
-    # Reasoning is everything before the JSON block
     reasoning = raw[:json_match.start()].strip()
-    # Strip "思考：" prefix if present
-    reasoning = re.sub(r"^思考[：:]\s*", "", reasoning).strip()
+    # Strip "思考：" or "Reasoning:" prefix
+    reasoning = re.sub(r"^(思考|Reasoning)[：:]\s*", "", reasoning).strip()
     return reasoning, intent
 
 
@@ -85,8 +83,7 @@ __LANG_INSTRUCTION__
 你是一个本地路线规划助手的意图解析模块。
 用户会用自然语言描述出行需求，你需要先简要说明推理过程，再输出结构化 JSON。
 
-输出格式（严格遵守，两部分之间空一行）：
-思考：[1-2句话，像向朋友复述一样描述你理解的用户需求，例如："用户想在外滩逛3小时，吃本帮菜、看历史建筑，预算300元。"严禁出现任何技术字段名（must_include_categories、duration_hours、food_pref等均不允许出现）]
+__COT_FORMAT__
 
 {"city": ..., "area": ..., ...}
 
@@ -164,22 +161,42 @@ def _build_system_prompt(lang: str) -> str:
     if lang_key == "en":
         instruction = (
             "=== OUTPUT LANGUAGE: ENGLISH ONLY ===\n"
-            "The user writes in English. Your ENTIRE response — including the reasoning line — "
-            "MUST be written in English. Using Chinese characters anywhere is FORBIDDEN."
+            "The user writes in English. Your ENTIRE response MUST be written in English. "
+            "Using Chinese characters anywhere is FORBIDDEN."
+        )
+        cot_format = (
+            "Output format (follow strictly, blank line between the two parts):\n"
+            "Reasoning: [1-2 sentences in English summarising the user's needs as you understand them, "
+            "e.g. \"The user wants to spend 3 hours near the waterfront, have Japanese food, budget HKD 400.\" "
+            "Do NOT mention any technical field names.]"
         )
     elif lang_key == "zh-CN":
         instruction = (
             "=== 输出语言：仅限简体中文 ===\n"
-            "用户使用简体中文输入。你的全部输出（包括思考推理行）必须使用简体中文，"
+            "用户使用简体中文输入。你的全部输出必须使用简体中文，"
             "严禁出现任何繁体字（如：來應該寫成来，為應該寫成为）。"
+        )
+        cot_format = (
+            "输出格式（严格遵守，两部分之间空一行）：\n"
+            "思考：[1-2句简体中文，像向朋友复述一样描述你理解的用户需求，"
+            "例如：「用户想在外滩逛3小时，吃本帮菜、看历史建筑，预算300元。」严禁出现任何技术字段名]"
         )
     else:
         instruction = (
             "=== 輸出語言：僅限繁體中文 ===\n"
-            "用戶使用繁體中文輸入。你的全部輸出（包括思考推理行）必須使用繁體中文，"
+            "用戶使用繁體中文輸入。你的全部輸出必須使用繁體中文，"
             "嚴禁出現任何簡體字（如：来應寫成來，为應寫成為，时應寫成時）。"
         )
-    return _SYSTEM_PROMPT_TEMPLATE.replace("__LANG_INSTRUCTION__", instruction)
+        cot_format = (
+            "輸出格式（嚴格遵守，兩部分之間空一行）：\n"
+            "思考：[1-2句繁體中文，像向朋友複述一樣描述你理解的用戶需求，"
+            "例如：「用戶想在外灘逛3小時，吃本幫菜、看歷史建築，預算300元。」嚴禁出現任何技術字段名]"
+        )
+    return (
+        _SYSTEM_PROMPT_TEMPLATE
+        .replace("__LANG_INSTRUCTION__", instruction)
+        .replace("__COT_FORMAT__", cot_format)
+    )
 
 
 class IntentNode(BaseNode):
@@ -210,12 +227,10 @@ class IntentNode(BaseNode):
 
         updates = list(state.get("stream_updates", []))
         if reasoning:
-            if i18n.normalize(lang) == "zh-TW":
-                reasoning = i18n.to_traditional(reasoning)
             updates.append(f"💡 {reasoning}")
 
-        city = intent.get("city", "")
-        area = intent.get("area", "")
+        city = i18n.translate_field("city", intent.get("city", ""), lang)
+        area = i18n.translate_field("area", intent.get("area", ""), lang)
         budget = intent.get("budget_total", "")
         duration = intent.get("duration_hours", "")
         party = intent.get("party_size", 2)

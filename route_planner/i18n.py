@@ -210,6 +210,34 @@ _CATEGORY_TW: dict[str, str] = {
     # 文化 / 自然 are the same in both
 }
 
+_LOCATION_EN: dict[str, str] = {
+    # Cities — both Traditional and Simplified variants
+    "香港": "Hong Kong", "上海": "Shanghai", "北京": "Beijing",
+    "廣州": "Guangzhou", "广州": "Guangzhou",
+    "深圳": "Shenzhen", "成都": "Chengdu",
+    # HK districts — Traditional
+    "旺角": "Mong Kok", "中環": "Central", "銅鑼灣": "Causeway Bay",
+    "尖沙咀": "Tsim Sha Tsui", "灣仔": "Wan Chai", "九龍": "Kowloon",
+    "荃灣": "Tsuen Wan", "屯門": "Tuen Mun", "元朗": "Yuen Long",
+    "沙田": "Sha Tin", "大埔": "Tai Po", "將軍澳": "Tseung Kwan O",
+    "西環": "Sai Wan", "上環": "Sheung Wan", "北角": "North Point",
+    "觀塘": "Kwun Tong", "深水埗": "Sham Shui Po", "黃大仙": "Wong Tai Sin",
+    "太古": "Taikoo", "西九龍": "West Kowloon", "港島": "Hong Kong Island",
+    "新界": "New Territories", "九龍城": "Kowloon City", "油麻地": "Yau Ma Tei",
+    "佐敦": "Jordan", "紅磡": "Hung Hom", "葵涌": "Kwai Chung",
+    "青衣": "Tsing Yi", "馬鞍山": "Ma On Shan", "天水圍": "Tin Shui Wai",
+    # HK districts — Simplified variants (fallback if LLM outputs Simplified)
+    "中环": "Central", "铜锣湾": "Causeway Bay", "湾仔": "Wan Chai",
+    "九龙": "Kowloon", "荃湾": "Tsuen Wan", "屯门": "Tuen Mun",
+    "将军澳": "Tseung Kwan O", "西环": "Sai Wan", "上环": "Sheung Wan",
+    "观塘": "Kwun Tong", "黄大仙": "Wong Tai Sin", "西九龙": "West Kowloon",
+    "港岛": "Hong Kong Island", "九龙城": "Kowloon City", "红磡": "Hung Hom",
+    "马鞍山": "Ma On Shan", "天水围": "Tin Shui Wai",
+    # Mainland landmarks
+    "外灘": "The Bund", "外滩": "The Bund", "三里屯": "Sanlitun",
+}
+
+
 _TREND_EN: dict[str, str] = {
     "火爆": "Trending", "新晋": "Rising", "经典": "Classic",
     "新晉": "Rising", "經典": "Classic",  # Traditional Chinese variants
@@ -275,50 +303,19 @@ def step(key: str, lang: str = "zh-TW", **kwargs) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Simplified → Traditional post-processing (for LLM CoT reasoning)
-# Only unambiguous 1-to-1 mappings; skips 发(發/髮) 复(復/複) etc.
+# Simplified ↔ Traditional conversion via OpenCC
 # ---------------------------------------------------------------------------
-_S2T_PAIRS = {
-    "来": "來", "为": "為", "时": "時", "间": "間", "这": "這",
-    "对": "對", "应": "應", "现": "現", "经": "經", "联": "聯",
-    "观": "觀", "标": "標", "处": "處", "专": "專", "务": "務",
-    "说": "說", "问": "問", "动": "動", "传": "傳", "统": "統",
-    "点": "點", "东": "東", "爱": "愛", "试": "試", "场": "場",
-    "临": "臨", "规": "規", "则": "則", "设": "設", "计": "計",
-    "备": "備", "将": "將", "过": "過", "质": "質", "实": "實",
-    "头": "頭", "样": "樣", "没": "沒", "关": "關", "转": "轉",
-    "历": "歷", "义": "義", "该": "該", "简": "簡", "单": "單",
-    "题": "題", "结": "結", "报": "報", "网": "網", "软": "軟",
-    "环": "環", "开": "開", "测": "測", "运": "運", "买": "買",
-    "变": "變", "认": "認", "识": "識", "态": "態", "条": "條",
-    "预": "預", "际": "際", "线": "線", "边": "邊", "们": "們",
-    "话": "話", "与": "與", "饮": "飲", "荐": "薦", "体": "體",
-    "验": "驗", "习": "習", "国": "國", "产": "產", "长": "長",
-    "员": "員", "节": "節", "录": "錄", "费": "費", "值": "值",
-    "汇": "匯", "币": "幣", "岛": "島", "车": "車", "马": "馬",
-    "门": "門", "风": "風", "气": "氣", "号": "號", "书": "書",
-    "乐": "樂", "后": "後", "选": "選", "从": "從", "还": "還",
-    "给": "給", "组": "組", "团": "團", "图": "圖", "带": "帶",
-    "赶": "趕", "续": "續", "档": "檔", "级": "級", "丰": "豐",
-    "让": "讓", "户": "戶", "汉": "漢", "语": "語", "华": "華",
-    "总": "總", "别": "別", "尝": "嚐", "觉": "覺",
-    "签": "簽", "证": "證", "码": "碼", "亿": "億", "万": "萬",
-    "资": "資", "继": "繼", "线": "線",
-    "两": "兩", "确": "確", "热": "熱", "区": "區", "纯": "純",
-    "娱": "娛", "乐": "樂", "剧": "劇", "艺": "藝", "术": "術",
-    "较": "較", "难": "難", "获": "獲", "权": "權", "样": "樣",
-    "类": "類", "须": "須", "称": "稱", "显": "顯", "尽": "盡",
-    "够": "夠", "随": "隨", "择": "擇", "据": "據", "势": "勢",
-    "具": "具",  # same, but keep for safety
-    "导": "導", "释": "釋", "词": "詞", "强": "強", "张": "張",
-    "带": "帶", "档": "檔", "级": "級", "丰": "豐",
-}
-_S2T_TABLE = str.maketrans(_S2T_PAIRS)
+import opencc as _opencc
+_s2t = _opencc.OpenCC("s2t")
+_t2s = _opencc.OpenCC("t2s")
 
 
 def to_traditional(text: str) -> str:
-    """Best-effort Simplified → Traditional conversion for display purposes."""
-    return text.translate(_S2T_TABLE)
+    return _s2t.convert(text)
+
+
+def to_simplified(text: str) -> str:
+    return _t2s.convert(text)
 
 
 def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
@@ -328,6 +325,15 @@ def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
     if lang_key == "zh-TW":
         if field == "category":
             return _CATEGORY_TW.get(value, value)
+        return value
+    if lang_key == "zh-CN":
+        if field == "sub_category":
+            tags = [to_simplified(t.strip()) for t in value.split("、") if t.strip()]
+            return "、".join(tags) if tags else value
+        if field in ("city", "area"):
+            return to_simplified(value)
+        if field in ("category", "trend_tag", "queue_risk"):
+            return to_simplified(value)
         return value
     if lang_key != "en":
         return value
@@ -351,4 +357,6 @@ def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
         return value
     if field == "queue_risk":
         return _QUEUE_RISK_EN.get(value, value)
+    if field in ("city", "area"):
+        return _LOCATION_EN.get(value, value)
     return value

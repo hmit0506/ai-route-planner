@@ -38,7 +38,7 @@ def _detect_lang(text: str) -> str:
 language = sys.argv[2] if len(sys.argv) > 2 else _detect_lang(user_input)
 _INPUT_LABEL = {"zh-CN": "用户输入", "zh-TW": "用戶輸入", "en": "User input"}
 from route_planner.i18n import normalize as _norm
-print(f"\n{_INPUT_LABEL.get(_norm(language), '用戶輸入')}: {user_input}  [language={language}]\n")
+print(f"\n{_INPUT_LABEL.get(_norm(language), '用戶輸入')}: {user_input}\n")
 
 initial_state: RouteState = {
     "user_input": user_input,
