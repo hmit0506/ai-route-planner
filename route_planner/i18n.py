@@ -236,6 +236,8 @@ _LOCATION_EN: dict[str, str] = {
     # HK neighbourhoods — Hong Kong Island
     "金鐘": "Admiralty", "西營盤": "Sai Ying Pun", "堅尼地城": "Kennedy Town",
     "石塘咀": "Shek Tong Tsui", "薄扶林": "Pok Fu Lam", "半山": "Mid-Levels",
+    "半山區": "Mid-Levels", "山頂": "The Peak", "摩星嶺": "Mount Davis",
+    "竹篙灣": "Penny's Bay", "龍躍頭": "Lung Yeuk Tau", "大浪灣": "Big Wave Bay",
     "西半山": "Mid-Levels West", "跑馬地": "Happy Valley", "大坑": "Tai Hang",
     "天后": "Tin Hau", "炮台山": "Fortress Hill", "鰂魚涌": "Quarry Bay",
     "西灣河": "Sai Wan Ho", "筲箕灣": "Shau Kei Wan", "柴灣": "Chai Wan",
@@ -245,6 +247,15 @@ _LOCATION_EN: dict[str, str] = {
     "石澳": "Shek O", "數碼港": "Cyberport", "東區": "Eastern District",
     "南區": "Southern District", "掃桿埔": "So Kon Po", "寶馬山": "Braemar Hill",
     "京士柏": "King's Park",
+    # HK administrative districts (18 districts)
+    "中西區": "Central and Western District", "灣仔區": "Wan Chai District",
+    "油尖旺區": "Yau Tsim Mong District", "深水埗區": "Sham Shui Po District",
+    "九龍城區": "Kowloon City District", "黃大仙區": "Wong Tai Sin District",
+    "觀塘區": "Kwun Tong District", "荃灣區": "Tsuen Wan District",
+    "屯門區": "Tuen Mun District", "元朗區": "Yuen Long District",
+    "北區": "North District", "大埔區": "Tai Po District",
+    "西貢區": "Sai Kung District", "沙田區": "Sha Tin District",
+    "葵青區": "Kwai Tsing District", "離島區": "Islands District",
     # HK neighbourhoods — Kowloon
     "土瓜灣": "To Kwa Wan", "馬頭圍": "Ma Tau Wai", "何文田": "Ho Man Tin",
     "九龍塘": "Kowloon Tong", "啟德": "Kai Tak", "新蒲崗": "San Po Kong",
