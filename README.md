@@ -17,18 +17,21 @@
 
 ## 核心能力
 
-- **自然语言理解**：解析"外滩附近、预算300、想吃本帮菜"等自由格式输入；CoT 推理过程可见，代码层自动校验修正
-- **时间感知规划**：根据行程时长自动决定站点数（3-8站）和类别配比（全天行程景点优先、餐饮穿插）
+- **自然语言理解**：解析"旺角附近、预算400、想吃日本料理"等自由格式输入；CoT 推理过程可见，代码层自动校验修正
+- **三语支持**：前端传 `language` 字段（`zh-TW` / `zh-CN` / `en`），所有用户可见文字（摘要、排队提示、交通说明、类别名称、履约报告）随语言切换；POI 含双语字段（`name_en`、`address_en`）
+- **真实 POI 数据**：18,089 家香港餐厅，来源 OpenRice 2021–2025 真实评论数据；75 个中文类别标签，88% 餐厅带多标签，LIKE 查询可命中任意标签
+- **时间感知规划**：根据行程时长自动决定站点数（3-8站）
 - **地理聚合**：过滤离群 POI，确保所有站点在合理步行/骑行范围内，避免"两头跑"
-- **多维度决策**：综合评分、性价比、团购价、排队峰值/非峰值、口味评分、销量热度，选出最优路线
-- **团购信息整合**：自动匹配可用团购套餐，用团购实付价计算预算
+- **多维度决策**：综合评分、性价比、排队峰值/非峰值、口味评分、销量热度，选出最优路线
+- **词汇对齐**：IntentNode 将用户自然语言（"壽司"、"下午茶"、"打邊爐"）规范化为数据库 sub_category 标准词，SQL LIKE 精准命中
 - **排队风险预警**：高峰等位提示 + 错峰安排建议
 - **静态地图**：高德静态地图打点 + 真实步行路径蓝线（后端生成图片 URL）
 - **动态地图**：前端嵌入高德 JS SDK，可缩放交互，点击 POI 弹出详情
 - **一键导航**：每个 POI 附带高德导航链接，手机点击直接跳转导航 App
-- **精确餐次规划**：提取用户明确说明的餐饮活动数量（`dining_count`），RouteAgent 按数量安排对应站点，多一个不行，少一个也不行
+- **精确餐次规划**：提取用户明确说明的餐饮活动数量（`dining_count`），RouteAgent 按数量安排对应站点
 - **自我检查**：RouteAgent 输出后代码验证合理性，不通过则携带纠正说明重试一次
 - **多轮对话**：支持"换一家不排队的餐厅"等局部调整，1 次 LLM 调用；替换时从现有路线提取地理上下文，保证替换结果在同一区域内
+- **履约报告**：每次规划后输出 satisfied / unmatched / tips，告知哪些需求满足了、用了什么替代、如何调整；不满足项同步推入 SSE 步骤流和 summary 字符串，前端无需额外处理
 
 ---
 
@@ -112,11 +115,11 @@ PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # 默认输入
 PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py
 
-# 自定义输入
-PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "帮我规划上海新天地周六晚上，预算400元，想吃日料"
+# 繁体中文（香港数据）
+PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "旺角附近下午，想吃日本料理，預算400港幣"
 
-# 全天行程测试
-PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "南京西路附近一整天，早上9点到晚上，包含午饭和晚饭"
+# 多餐次行程
+PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "中環一整天，包括午餐和晚餐，預算600"
 ```
 
 ### 预期输出
@@ -156,11 +159,14 @@ PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "南京西路附近一整
 
 ```json
 {
-  "user_input": "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点",
+  "user_input": "旺角附近下午，想吃日本料理，預算400港幣",
+  "language": "zh-TW",
   "conversation_history": [],
   "locked_nodes": []
 }
 ```
+
+`language` 可选值：`"zh-TW"`（繁体，默认）、`"zh-CN"`（简体）、`"en"`（English）。
 
 ### POST /route/refine
 
@@ -205,7 +211,8 @@ event: done    → {}
 ```
 ai-route-planner/
 ├── route_planner/
-│   ├── state.py               # RouteState TypedDict（全局状态）
+│   ├── i18n.py                # 三语翻译模块（文字模板 + 字段级翻译）
+│   ├── state.py               # RouteState TypedDict（全局状态，含 language 字段）
 │   ├── node.py                # BaseNode 基类
 │   ├── graph.py               # LangGraph 流水线（build_graph + build_refine_graph）
 │   ├── llm.py                 # DeepSeek + Claude fallback，指数退避重试
@@ -227,7 +234,8 @@ ai-route-planner/
 ├── scripts/
 │   ├── run_pipeline.py        # 完整流水线测试
 │   ├── run_intent.py          # IntentAgent 单测
-│   └── migrate_to_sqlite.py   # poi.csv → poi.db（setup.sh 自动调用）
+│   ├── migrate_to_sqlite.py   # poi.csv → poi.db（setup.sh 自动调用）
+│   └── migrate_hk_to_csv.py  # OpenRice xlsx → poi.csv（本地维护数据用）
 ├── docs/
 │   ├── ARCHITECTURE.md        # 系统架构详解
 │   └── frontend_guide_for_C.md # 前端接入指南（成员 C 专用）
@@ -243,12 +251,18 @@ ai-route-planner/
 
 ## POI 数据维护
 
-数据存储在 `route_planner/data/poi.csv`，GitHub 上可直接查看表格。
+数据存储在 `route_planner/data/poi.csv`（18,089 条香港餐厅，GitHub 上可直接查看表格）。
 
-**添加/修改 POI**：
+**从 OpenRice xlsx 重新生成**（更新原始数据集后）：
+```bash
+PYTHONPATH=. .venv/bin/python3 scripts/migrate_hk_to_csv.py
+git add route_planner/data/poi.csv && git push
+```
+Railway 重新部署时自动重建 `poi.db`。
+
+**直接编辑 poi.csv**（小幅修改）：
 1. 编辑 `poi.csv`（Excel 或任意编辑器）
-2. `git push` 后 Railway 自动重新部署，`poi.db` 同步更新
-3. 本地重新运行 `bash setup.sh` 刷新 `poi.db`
+2. `git push` → Railway 自动重新部署，`poi.db` 同步更新
 
 ---
 
@@ -280,9 +294,14 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] RefineSelectNode：修复重复替换 bug（排除所有当前路线 POI）
 - [x] OutputNode：步行路径并行请求（ThreadPoolExecutor，最坏 3s vs 原来 N×3s）
 - [x] 缓存升级：两级 key（原始输入 + intent 结构化 key），不同说法相同意图可共享缓存
-- [x] fulfillment_notes：履约报告，告知用户哪些需求满足了、哪些替代了、怎么调整
+- [x] fulfillment_notes：履约报告推入 SSE 步骤流和 summary，前端零改动可见
+- [x] 三语支持（zh-TW / zh-CN / en）：所有用户可见字段随 language 切换
+- [x] 真实 HK 数据集：18,089 家香港餐厅（OpenRice 2021–2025），75 个中文类别标签，双语字段
+- [x] 多标签 sub_category（88% 餐厅，LIKE 命中任意标签）+ IntentNode food_pref 词汇对齐
+- [x] 字段级翻译：sub_category / category / trend_tag / queue_risk 英文模式自动翻译
+- [ ] 文化景点数据（待补充）
 - [ ] 前后端联调（成员 C 接入 NoCode）
-- [ ] 优化加分项（小红书风格输出、用户记忆）+ 录制 Demo
+- [ ] 优化加分项（小红书风格输出）+ 录制 Demo
 - [ ] 文档整理 + 提交
 
 ---

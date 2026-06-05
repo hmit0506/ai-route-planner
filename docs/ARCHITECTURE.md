@@ -88,12 +88,14 @@
 ```python
 class RouteState(TypedDict):
     user_input: str               # 原始用户输入，全程不变
+    language: str                 # "zh-TW" | "zh-CN" | "en"，由请求注入，全程传递
     intent: dict                  # IntentNode 写入；_refine 子键由 RefineNode 写入
     candidates: dict              # POISearchNode 写入，GeoClusterNode 过滤后更新
     route: list                   # RouteNode 写入骨架，Enrich/Output 逐步丰富
     locked_nodes: list            # 多轮对话中用户满意不替换的节点索引（0-based）
     map_url: str                  # OutputNode 写入
     summary: str                  # OutputNode 写入
+    fulfillment_notes: dict       # OutputNode 写入：satisfied / unmatched / tips
     conversation_history: list    # 跨轮保留，传入 IntentNode
     stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
 ```
@@ -119,25 +121,29 @@ class RouteState(TypedDict):
 - `duration_hours` 缺失 → 从 `time_range` 推算，兜底默认 4
 - `budget_per_person` 与 `budget_total / party_size` 偏差 > 5 元 → 修正
 - `must_include_categories` 为空 → 补 "餐饮"
-- `duration_hours >= 5` 且只有 "餐饮" → 自动追加 "文化"
 - `dining_count` 非整数或负数 → 修正为 0
+- 不自动追加"文化"类别——数据库可能无文化类 POI，强加会导致搜索失败
+
+**多语言支持**：`language` 字段注入到 system prompt，推理文字随用户语言输出；`city/area/food_pref` 字段统一输出繁体中文（数据库以繁体索引），避免简体/英文导致 LIKE 查询失效。
+
+**food_pref 词汇对齐**：prompt 内嵌标准词对照表，将用户自然语言（"壽司"、"下午茶"、"打邊爐"）归一化为数据库实际 sub_category 词汇，确保 SQL LIKE 能命中。
 
 **输出示例**：
 ```json
 {
-  "city": "上海", "area": "南京西路",
-  "time_range": {"start": "09:00", "end": "21:00"},
-  "duration_hours": 12,
-  "budget_total": 300, "budget_per_person": 150, "party_size": 2,
-  "food_pref": ["本帮菜"],
-  "culture_pref": ["历史建筑"],
+  "city": "香港", "area": "旺角",
+  "time_range": {"start": "14:00", "end": "21:00"},
+  "duration_hours": 7,
+  "budget_total": 400, "budget_per_person": 200, "party_size": 2,
+  "food_pref": ["日本料理"],
+  "culture_pref": [],
   "avoid": [],
-  "dining_count": 2,
-  "must_include_categories": ["餐饮", "文化"]
+  "dining_count": 0,
+  "must_include_categories": ["餐饮"]
 }
 ```
 
-`dining_count` 是整数（用户明确提到几个餐饮活动，0 表示未指定）。用整数避免了命名语义的歧义（"吃川菜" vs "下午茶" 该如何分类的问题）。
+`dining_count` 是整数：仅当用户明确指定餐饮次数时才 > 0（"包括午饭和晚饭"→2）；菜系偏好（"想吃日本料理"）不计入次数，输出 0。
 
 ---
 
@@ -213,18 +219,25 @@ class RouteState(TypedDict):
 
 ### 4.5 EnrichNode（纯代码）
 
-**职责**：将 RouteNode 输出的 POI ID 骨架映射回完整字段，并计算三个展示用派生字段。
+**职责**：将 RouteNode 输出的 POI ID 骨架映射回完整字段，计算展示用派生字段，并按 `language` 翻译字段值。
 
 | 派生字段 | 计算逻辑 |
 |---|---|
-| `queue_risk_tip` | 高→"晚高峰等位约N分钟，建议提前到店"；中→"高峰期约N分钟"；低→"基本无需等位" |
+| `queue_risk_tip` | 按语言输出：高→"晚高峰等位约N分钟"／"Peak hours wait ~N min"；支持三种语言 |
 | `group_buy.discount` | `current_price / original_price × 10`，格式"6.8折" |
-| `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；否则拼接实际数字 |
+| `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；英文模式→"Trending (1.2k+ sold)" |
+
+**字段级翻译**（`language="en"` 时）：
+- `sub_category`："日本料理、壽司" → "Japanese / Sushi"（75 个标准词对照表）
+- `category`："餐饮" → "Dining"
+- `queue_risk`："高" → "High"
+- `trend_tag`："火爆" → "Trending"
 
 多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
-EnrichNode 输出的每个 POI 包含 `city`、`area` 和 `pref_matched` 字段：
+EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en` 和 `pref_matched` 字段：
 - `city` / `area`：供 RefineNode 提取地理上下文
+- `name_en` / `address_en`：双语展示，前端英文模式直接使用
 - `pref_matched`：True = 该 POI 的 sub_category 匹配用户的 food_pref/culture_pref；False = 最优近似替代；供 OutputNode 生成履约报告
 
 ---
@@ -337,17 +350,31 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 **维护流程**：编辑 `poi.csv` → `git push` → Railway 自动重新部署，`poi.db` 自动重建。
 
-### POI 字段覆盖（100条，上海主要商圈）
+### POI 数据覆盖（18,089 条，香港全区）
 
-| 类别 | 数量 | 子类举例 |
-|---|---|---|
-| 餐饮 | ~50 | 本帮菜、江浙菜、火锅、粤菜、日料、咖啡、下午茶 |
-| 文化 | ~30 | 博物馆、历史建筑、创意街区、寺庙、书店 |
-| 娱乐 | ~10 | 游船、主题乐园、水族馆、剧院 |
-| 自然 | ~5 | 城市公园、滨江景观 |
-| 购物 | ~5 | 商业街、艺术商场 |
+**数据来源**：OpenRice 香港 2021–2025 年真实用户评论数据集（5年×约9–17万条评论）。
 
-每条 POI 含 28 个字段：评分体系（总分/口味/性价比等）、客单价、团购信息、排队数据（峰值/非峰值）、营业时间、销量趋势等。
+| 指标 | 数值 |
+|---|---|
+| 总 POI 数 | 18,089 家餐厅 |
+| 覆盖地区 | 旺角 1,615 / 中環 1,064 / 東區 776 / 灣仔 756 / 觀塘 582 / 荃灣 572 … |
+| sub_category 标签数 | 75 个（全中文） |
+| 多标签 POI 占比 | 88%（如"潮州菜、麵食"，LIKE 可命中任意标签） |
+| 评分字段 | taste / decor / service / hygiene / value（5年平均值） |
+| 双语字段 | `name` 繁体中文 + `name_en` 英文；`address` + `address_en` |
+
+**缺失字段的填充策略**（OpenRice 数据集无原始数据）：
+
+| 字段 | 填充方式 |
+|---|---|
+| `avg_price_per_person` | 按 sub_category 映射默认值（港式茶餐廳 65、日本料理 200、扒房 500…） |
+| `queue_risk` | review_count 达上限(50) 且 taste ≥ 4.0 → 高；≥ 30 且 ≥ 3.8 → 中；其余 低 |
+| `trend_tag` | open_since 2023+ → 新晋；2024+2025 评论 ≥ 2× 前期 → 火爆；其余 经典 |
+| `half_year_sales` | (2024 + 2025 评论数) × 200（相对代理值） |
+| `has_group_buy` | 全部 false（无数据） |
+| `business_hours` | 空（无数据） |
+
+**迁移脚本**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ Railway 启动时 `migrate_to_sqlite.py` → `poi.db`（不提交）。
 
 ---
 
@@ -364,11 +391,14 @@ GET  /health           健康检查
 `POST /route/generate`：
 ```json
 {
-  "user_input": "帮我规划上海外滩附近的周末下午，预算300元，想吃本帮菜，顺便逛文化景点",
+  "user_input": "旺角附近下午，想吃日本料理，預算400港幣",
+  "language": "zh-TW",
   "conversation_history": [],
   "locked_nodes": []
 }
 ```
+
+`language` 支持 `"zh-TW"`（繁体中文，默认）、`"zh-CN"`（简体中文）、`"en"`（English）。
 
 `POST /route/refine`（需携带上一次返回的完整路线）：
 ```json
@@ -402,28 +432,39 @@ event: error   → {"message": "错误信息"}
   "route": [
     {
       "order": 1,
-      "name": "外婆家（南京西路店）",
-      "category": "餐饮",
-      "address": "南京西路1038号",
-      "lat": 31.2245, "lng": 121.4491,
+      "name": "鐵板燒海賀",
+      "name_en": "Teppanyaki Kaika",
+      "category": "Dining",
+      "sub_category": "Japanese / Sushi",
+      "address": "旺角彌敦道某某號",
+      "address_en": "G/F, XXX Nathan Road, Mong Kok",
+      "lat": 22.3144, "lng": 114.1724,
       "rating": 4.8,
-      "avg_price_per_person": 128,
-      "queue_risk": "高",
-      "queue_risk_tip": "晚高峰等位约40分钟，建议17:30前到店",
-      "has_group_buy": true,
-      "group_buy": {"title": "双人尊享套餐", "original_price": 380, "current_price": 258, "discount": "6.8折"},
+      "avg_price_per_person": 200,
+      "queue_risk": "High",
+      "queue_risk_tip": "Peak hours wait ~30 min, arrive early",
+      "has_group_buy": false,
+      "group_buy": null,
       "stay_minutes": 90,
-      "transport_to_next": "步行约8分钟",
-      "transport_polyline": "121.4491,31.2245;121.4510,31.2250;...",
+      "transport_to_next": "Walk ~8 min",
+      "transport_polyline": "114.1724,22.3144;...",
       "navigation_url": "https://uri.amap.com/navigation?to=...",
-      "trend_tag": "火爆（已售1.2万单）"
+      "trend_tag": "Trending (1.2k+ sold)",
+      "pref_matched": true
     }
   ],
   "map_url": "https://restapi.amap.com/v3/staticmap?...",
-  "summary": "为你安排了3站行程，预计游玩4小时，1处有团购优惠，餐饮消费约258元。",
-  "agent_steps": ["💡 ...", "已解析需求：...", "找到候选POI：...", "路线生成完成"]
+  "summary": "Planned 3 stops, est. 4h, dining ~HKD 600.",
+  "fulfillment_notes": {
+    "satisfied": ["Japanese ✓ (鐵板燒海賀)"],
+    "unmatched": [],
+    "tips": []
+  },
+  "agent_steps": ["💡 ...", "Parsed: Hong Kong Mong Kok...", "Found 10 dining candidates", "Route ready"]
 }
 ```
+
+> 示例为 `language="en"` 时的输出。`zh-TW` 模式下 category/sub_category/queue_risk/trend_tag/summary 均为繁体中文。
 
 ---
 
