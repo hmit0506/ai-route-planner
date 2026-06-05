@@ -126,7 +126,7 @@ class RouteState(TypedDict):
 
 **多语言支持**：
 - `language` 字段注入到 system prompt 首行 + user message 前缀，推理文字随用户语言输出
-- zh-TW 模式下，LLM CoT 推理行经 `i18n.to_traditional()` 后处理，将常见简体字转为繁体（覆盖约 80 个字符对），保证显示一致
+- zh-TW 模式下，CoT 格式指令在 system prompt 中即指定繁体中文格式（`__COT_FORMAT__` 占位符），从提示词层保证语言；`i18n.to_traditional()` 基于 OpenCC 作为兜底
 - `city/area/food_pref` 字段统一输出繁体中文（数据库以繁体索引），避免简体/英文导致 LIKE 查询失效
 - `must_include_categories` 代码层规范化为固定简体词（`餐饮/文化/娱乐`），确保数据库精确匹配
 
@@ -191,12 +191,17 @@ class RouteState(TypedDict):
 
 | 字段 | 决策用途 |
 |---|---|
-| `rating` + `review_count` | 综合质量，review_count < 100 时降低评分可信度 |
-| `value_rating` | 性价比；预算有限时优先选高性价比 |
+| `rating` | 综合评分 |
+| `review_count` | 评分可信度参考，越高越可信 |
+| `recommend_count` | 口碑代理（5年评论总数，真实数据，范围 3-50） |
+| `value_rating` | 性价比；预算有限时优先高性价比 |
+| `hygiene_rating` | 卫生评分；所有 POI 均参考 |
+| `taste_rating`（仅餐饮） | 食客最核心关注点 |
+| `decor_rating` + `service_rating`（非餐饮） | 文化/娱乐类体验质量 |
 | `avg_price_per_person` / `group_buy_price` | 实际花费；有团购时用团购价计算预算 |
 | `queue_minutes_peak` / `queue_minutes_offpeak` | 峰值与非峰值等位时间，用于安排时段 |
-| `taste_rating`（仅餐饮） | 食客最核心关注点 |
 | `half_year_sales` | 热门程度，同等条件下优先高销量 |
+| `trend_tag` | 火爆 > 经典 > 新晋，辅助热度决策 |
 | `business_hours` | 营业时间硬约束 |
 | `lat/lng` | 地理相邻性判断 |
 
@@ -356,8 +361,9 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `summary(n, mins, budget, deals, lang)` | 行程总结语句 |
 | `f(key, lang, **kwargs)` | 履约报告模板（satisfied / unmatched / tips） |
 | `step(key, lang, **kwargs)` | SSE 进度消息（覆盖全部 8 个节点） |
-| `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk |
-| `to_traditional(text)` | 简体→繁体后处理（~85 个字符对，用于 CoT 推理行保证繁体输出） |
+| `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk / city / area |
+| `to_traditional(text)` | 简→繁转换，基于 OpenCC（`s2t` 模式，覆盖所有汉字） |
+| `to_simplified(text)` | 繁→简转换，基于 OpenCC（`t2s` 模式），用于 zh-CN 模式字段值展示 |
 
 所有节点通过 `state["language"]` 获取语言设置，不再硬编码中文字符串。
 
@@ -391,12 +397,13 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 
 | 字段 | 填充方式 |
 |---|---|
-| `avg_price_per_person` | 按 sub_category 映射默认值（港式茶餐廳 65、日本料理 200、扒房 500…） |
-| `queue_risk` | review_count 达上限(50) 且 taste ≥ 4.0 → 高；≥ 30 且 ≥ 3.8 → 中；其余 低 |
+| `avg_price_per_person` | 拆分 sub_category 所有 tag，取最高价映射值（港式茶餐廳 65、日本料理 200、扒房 500…），130 占比从 69% 降至 8.7% |
+| `queue_risk` / `queue_minutes` | review_count 达上限(50) 且 taste ≥ 4.0 → 高；≥ 30 且 ≥ 3.8 → 中；其余 低；minutes 在各档内以 poi_id hash 加变化（高: 20-45min，中: 10-25min，低: 0-10min） |
 | `trend_tag` | open_since 2023+ → 新晋；2024+2025 评论 ≥ 2× 前期 → 火爆；其余 经典 |
 | `half_year_sales` | (2024 + 2025 评论数) × 200（相对代理值） |
-| `has_group_buy` | 全部 false（无数据） |
-| `business_hours` | 空（无数据） |
+| `recommend_count` | 5年评论总数（真实数据，范围 3-50，代理口碑热度） |
+| `has_group_buy` | 全部 false（无数据，待补充） |
+| `business_hours` | 空（无数据，待补充） |
 
 **迁移脚本**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ Railway 启动时 `migrate_to_sqlite.py` → `poi.db`（不提交）。
 

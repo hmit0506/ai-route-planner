@@ -301,6 +301,9 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 字段级翻译：sub_category / category / trend_tag / queue_risk 英文模式自动翻译
 - [x] 全链路三语一致性：所有步骤消息（IntentNode / POISearch / GeoCluster / RouteNode / EnrichNode / OutputNode）均走 i18n；CoT 推理行后处理确保繁体输出；验证错误消息三语化
 - [x] 语言自动检测：run_pipeline.py 根据输入字符集自动判断 zh-CN / zh-TW / en
+- [x] i18n 重构：引入 OpenCC 替换手写字符对（85条→库），繁简互转覆盖所有汉字；CoT 格式指令语言化（__COT_FORMAT__ 占位符），无需后处理；city/area 三语显示翻译
+- [x] 数据质量修复：avg_price 改为多 tag 取最高价（130占比 69%→8.7%）；queue_minutes 加哈希变化（原3个固定值→均匀分布）；过滤 taste_rating=0 无效行
+- [x] 全字段利用：RouteAgent 新增 hygiene/decor/service_rating、trend_tag、review_count、recommend_count；EnrichNode 输出全部细分评分；recommend_count 改为真实评论总数（原 total×150）
 - [ ] 文化景点数据（待补充）
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 优化加分项（小红书风格输出）+ 录制 Demo
