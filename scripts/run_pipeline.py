@@ -61,12 +61,12 @@ graph = build_graph()
 result = graph.invoke(initial_state)
 
 _HEADERS = {
-    "zh-CN": ("=== Agent 日志 ===", "=== 路线结果 ===", "=== 总结 ===", "=== 地图URL ==="),
-    "zh-TW": ("=== Agent 日誌 ===", "=== 路線結果 ===", "=== 總結 ===", "=== 地圖URL ==="),
-    "en":    ("=== Agent Log ===",  "=== Route Result ===", "=== Summary ===", "=== Map URL ==="),
+    "zh-CN": ("=== Agent 日志 ===", "=== 路线结果 ===", "=== 总结 ===", "=== 地图URL ===", "=== 小红书贴文 ==="),
+    "zh-TW": ("=== Agent 日誌 ===", "=== 路線結果 ===", "=== 總結 ===", "=== 地圖URL ===", "=== 小紅書貼文 ==="),
+    "en":    ("=== Agent Log ===",  "=== Route Result ===", "=== Summary ===", "=== Map URL ===", "=== Xiaohongshu Post ==="),
 }
 from route_planner.i18n import normalize as _norm
-h_log, h_route, h_summary, h_map = _HEADERS[_norm(language)]
+h_log, h_route, h_summary, h_map, h_xhs = _HEADERS[_norm(language)]
 
 print(h_log)
 for step in result["stream_updates"]:
@@ -76,9 +76,14 @@ print(f"\n{h_route}")
 for poi in result["route"]:
     gb = poi.get("group_buy")
     gb_str = f" | {gb['current_price']} HKD" if gb else ""
+    tags_str = " ".join(f"[{t}]" for t in (poi.get("tags") or [])[:3])
     print(f"  {poi['order']}. {poi['name']} ({poi['category']}) "
-          f"| {poi['rating']} | {poi['queue_risk']}{gb_str}")
+          f"| {poi['rating']} | {poi['queue_risk']}{gb_str}  {tags_str}")
     print(f"     {poi.get('stay_minutes',60)}min → {poi.get('transport_to_next','')}")
 
 print(f"\n{h_summary}\n{result['summary']}")
 print(f"\n{h_map}\n{result['map_url']}")
+
+xhs = result.get("xiaohongshu_post", "")
+if xhs:
+    print(f"\n{h_xhs}\n{xhs}")

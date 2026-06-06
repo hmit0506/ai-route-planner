@@ -8,6 +8,7 @@ from typing import Dict, Any
 
 from route_planner.node import BaseNode
 from route_planner.state import RouteState
+from route_planner.llm import call_llm
 import route_planner.i18n as i18n
 
 
@@ -343,6 +344,84 @@ def _build_xiaohongshu(route: list, intent: dict, weather: dict, lang: str = "zh
     ).strip()
 
 
+def _llm_xiaohongshu(route: list, intent: dict, weather: dict, lang: str) -> str:
+    """LLM-generated xiaohongshu post. Falls back to template on any failure."""
+    lang_key = i18n.normalize(lang)
+
+    poi_lines = []
+    for p in route:
+        name    = p.get("name", "")
+        cat     = p.get("category", "")
+        rating  = p.get("rating", 0)
+        gb      = p.get("group_buy")
+        tags    = p.get("tags") or []
+        rtags   = p.get("risk_tags") or []
+        gb_str  = f"，团购{gb['current_price']}元" if gb else ""
+        tag_str = f"，{'/'.join(tags[:3])}" if tags else ""
+        rt_str  = f"，⚠{'/'.join(rtags[:2])}" if rtags else ""
+        poi_lines.append(f"- {name}（{cat}，{rating}分{gb_str}{tag_str}{rt_str}）")
+
+    city      = intent.get("city", "")
+    area      = intent.get("area", "")
+    budget    = intent.get("budget_total", 0)
+    party     = intent.get("party_size", 2)
+    scenarios = intent.get("scenarios", [])
+    food_pref = intent.get("food_pref", [])
+
+    weather_line = ""
+    if weather and weather.get("condition", "clear") != "clear":
+        weather_line = f"\n天气：{weather.get('weather','')} {int(weather.get('temperature',0))}°C"
+
+    total_mins  = sum(p.get("stay_minutes", 60) for p in route)
+    dining_cost = sum(
+        (p.get("group_buy") or {}).get("current_price", 0) or p.get("avg_price_per_person", 0)
+        for p in route if p.get("category") in _DINING_CATS
+    )
+
+    if lang_key == "en":
+        lang_inst = (
+            "Write entirely in English. Casual, enthusiastic tone like a travel blogger. "
+            "English hashtags only. Prices in HKD."
+        )
+    elif lang_key == "zh-CN":
+        lang_inst = "全程简体中文，禁止繁体字。语气活泼自然，像朋友分享，不像广告。话题标签用简体。"
+    else:
+        lang_inst = "全程繁體中文，嚴禁簡體字。語氣活潑自然，像朋友分享，不像廣告。話題標籤用繁體。"
+
+    system_prompt = f"""\
+你是一位真實的小紅書生活博主，擅長寫出讓人心動的本地出行攻略。
+
+要求（必須遵守）：
+- {lang_inst}
+- 字數控制在 200–350 字之間
+- 大量使用 emoji，每段至少 1 個，標題必須有 emoji
+- 結構：① 吸睛標題（含數字或感嘆詞）→ ② 路線亮點（重點站點，帶真實感受）→ ③ 實用 Tips（預算/時間/注意事項）→ ④ 話題標籤（5–8 個，緊貼內容）
+- 只輸出貼文正文，不要有「以下是」或任何前言解釋
+- 數字要具體，避免空洞形容
+"""
+
+    user_msg = (
+        f"城市：{city} {area}\n"
+        f"人數：{party}人｜預算：{budget}元｜行程約 {round(total_mins/60,1)} 小時\n"
+        f"場合：{'/'.join(scenarios) if scenarios else '休閒出行'}\n"
+        f"飲食偏好：{'/'.join(food_pref) if food_pref else '無特定要求'}\n"
+        f"餐飲消費估算：{int(dining_cost)}元"
+        f"{weather_line}\n\n"
+        f"路線站點：\n" + "\n".join(poi_lines) + "\n\n"
+        f"請寫一篇小紅書攻略貼文。"
+    )
+
+    try:
+        result = call_llm(
+            [{"role": "system", "content": system_prompt},
+             {"role": "user",   "content": user_msg}],
+            parse_json=False,
+        )
+        return result.strip()
+    except Exception:
+        return _build_xiaohongshu(route, intent, weather, lang)
+
+
 def _build_summary(route: list, lang: str = "zh-TW") -> str:
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
     gb_count = sum(1 for r in route if r.get("has_group_buy"))
@@ -360,19 +439,25 @@ class OutputNode(BaseNode):
         lang = state.get("language", "zh-TW")
         api_key = os.getenv("AMAP_API_KEY", "")
 
-        # Fetch all walking polylines in parallel
+        # Fetch walking polylines + LLM xiaohongshu post in parallel
         n_segments = len(route) - 1
+        intent_snap  = state.get("intent", {})
+        weather_snap = state.get("weather", {})
+
         def _fetch_segment(i):
             poi, nxt = route[i], route[i + 1]
             return _fetch_walking_polyline(
                 poi["lng"], poi["lat"], nxt["lng"], nxt["lat"], api_key
             ) if api_key else None
 
-        if n_segments > 0:
-            with ThreadPoolExecutor(max_workers=min(n_segments, 5)) as ex:
-                polylines = list(ex.map(_fetch_segment, range(n_segments)))
-        else:
-            polylines = []
+        def _gen_xhs(_):
+            return _llm_xiaohongshu(route, intent_snap, weather_snap, lang)
+
+        with ThreadPoolExecutor(max_workers=min(n_segments + 1, 6)) as ex:
+            segment_futures = [ex.submit(_fetch_segment, i) for i in range(n_segments)]
+            xhs_future      = ex.submit(_gen_xhs, None)
+            polylines = [f.result() for f in segment_futures]
+            xhs_post  = xhs_future.result()
 
         for i, poi in enumerate(route):
             poi["order"] = i + 1
@@ -386,15 +471,11 @@ class OutputNode(BaseNode):
                 poi["transport_to_next"] = ""
                 poi["transport_polyline"] = None
 
-        map_url = _build_map_url(route, polylines)
-        intent  = state.get("intent", {})
-        weather = state.get("weather", {})
-        fulfillment = _build_fulfillment(route, intent, lang)
-        summary = _build_summary(route, lang)
+        map_url     = _build_map_url(route, polylines)
+        fulfillment = _build_fulfillment(route, intent_snap, lang)
+        summary     = _build_summary(route, lang)
         if fulfillment.get("unmatched"):
             summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
-
-        xhs_post = _build_xiaohongshu(route, intent, weather, lang)
 
         updates = list(state.get("stream_updates", []))
         updates.append(i18n.step("output_done", lang))
