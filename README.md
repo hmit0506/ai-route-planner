@@ -23,8 +23,12 @@
 - **时间感知规划**：根据行程时长自动决定站点数（3-8站）
 - **地理聚合**：以意图 area 的真实坐标为锚点（90+ 香港/上海社区对照表），半径 2km 过滤，确保所有站点在合理步行范围内，避免"两头跑"
 - **营业时间过滤**：POI 召回阶段自动过滤与用户时间段不重叠的场所；候选不足时 soft fallback 保留原始结果
+- **天气感知路线**：调用高德天气 API 获取用户出行日期/时段的实时天气预报，识别晴/雨/高温/寒冷/恶劣 5 种天气；雨天/高温自动注入 `prefer_indoor=true` 到 intent，RouteNode 系统提示随之切换为室内优先策略；SSE 步骤流实时推送天气提示（三语）
+- **实时 POI 搜索**：大陆城市（非香港）优先调用高德 Place Search API 获取实时数据，按 `food_pref`/`culture_pref` 关键词精准搜索（如"日本料理|壽司"），多关键词并发搜索后去重合并；香港城市保持 SQLite 优先（本地数据更丰富），高德作为兜底
 - **高德 POI 兜底**：本地数据库候选 < 3 条时，自动调用高德 Place Search API 补充候选，并在 SSE 步骤流中提示
 - **评论信号驱动**：11 个来自真实 OpenRice 评论的信号字段（risk/queue/photo/local/accessibility mention rate + year_max + 四个 level 标签 + scenario_tags）参与 SQL 预排序和 LLM 决策；低风险优先、近年仍活跃优先；prefer_local / 打卡拍照 / 家庭親子等场合需求精准匹配
+- **POI 标签体系**：每个 POI 自动生成结构化正向标签（高口碑/團購划算/性價比高/本地人常去/拍照出片/低排隊/冷門寶藏/適合情侶/親子友好/雨天友好）和风险标签（踩雷風險/排隊較高/網紅打卡），基于评论信号字段计算，天气感知可动态追加「雨天友好」；三语全覆盖（zh-TW繁体/zh-CN简体/en英文）
+- **小红书式攻略导出**：每次规划后自动生成 `xiaohongshu_post` 文本，格式为社媒分享风格（路线摘要、时长、预算、适合人群、天气提醒、团购亮点、避坑提示、话题标签），无需额外 LLM 调用，三语各有专属模板
 - **多维度决策**：综合评分、性价比、排队峰值/非峰值、口味评分、销量热度，选出最优路线
 - **用户记忆**：传入 `user_id` 即自动加载历史偏好（菜系、忌口、消费习惯），注入 RouteAgent 作为软约束；已访问 POI 自动从候选中排除，避免重复推荐；路线生成后异步更新记忆
 - **词汇对齐**：IntentNode 将用户自然语言（"壽司"、"下午茶"、"打邊爐"）规范化为数据库 sub_category 标准词，SQL LIKE 精准命中
@@ -46,11 +50,12 @@
 ```
 用户输入
   → IntentNode       LLM①：CoT推理 + 结构化意图 JSON，代码层自动校验
-  → POISearchNode    纯代码：SQLite 查询，按城市/商圈/类别召回 Top-10 候选
-  → GeoClusterNode   纯代码：地理聚合 + 时间→站点数 + 类别配比约束
-  → RouteNode        LLM②：多维度决策，选出最优路线
-  → EnrichNode       纯代码：poi_id→完整字段，计算排队提示/团购折扣/趋势标签
-  → OutputNode       纯代码：步行路径、导航链接、地图 URL、摘要
+  → WeatherNode      纯代码：高德天气 API，注入天气感知字段到 intent
+  → POISearchNode    纯代码：HK用SQLite优先，大陆城市用高德API优先（pref关键词搜索）
+  → GeoClusterNode   纯代码：地理聚合 + 时间→站点数
+  → RouteNode        LLM②：多维度决策，天气感知路线选择
+  → EnrichNode       纯代码：poi_id→完整字段，计算排队/团购/趋势/POI标签
+  → OutputNode       纯代码：步行路径、导航链接、地图URL、摘要、小红书导出
 ```
 
 ### 局部替换（1次 LLM 调用）
@@ -215,6 +220,15 @@ event: done    → {}
 | `local_mention_rate` | 地道/本土感短语占比（0~1）；高值可展示"地道老铺"标签 |
 | `year_max` | 最近收到评论的年份（2021-2025）；前端可展示"活跃" / "久未更新"提示 |
 | `scenario_tags` | 场合标签，如 `"情侶約會;朋友聚餐"`；前端可展示场合适配图标 |
+| `tags` | 正向标签列表，如 `["高口碑","團購划算","冷門寶藏"]`；已按 language 翻译（en: `["Highly Rated","Great Deal","Hidden Gem"]`） |
+| `risk_tags` | 风险标签列表，如 `["排隊較高","踩雷風險"]`；已按 language 翻译 |
+
+**顶层字段**（与 route 同级）：
+
+| 字段 | 说明 |
+|---|---|
+| `weather` | WeatherNode 输出：`{"condition":"rain","temperature":22,"prefer_indoor":true,...}` |
+| `xiaohongshu_post` | 小红书式攻略文本，含路线/预算/场景/天气/团购/避坑/话题标签，按 language 输出 |
 
 ---
 
@@ -232,7 +246,8 @@ ai-route-planner/
 │   ├── llm.py                 # DeepSeek + Claude fallback，指数退避重试
 │   ├── nodes/
 │   │   ├── intent.py          # IntentNode：CoT意图解析 + 代码层自动校验（LLM）
-│   │   ├── poi_search.py      # POISearchNode：SQLite 候选召回（纯代码）
+│   │   ├── weather.py         # WeatherNode：高德天气API，天气感知路线调整（纯代码）
+│   │   ├── poi_search.py      # POISearchNode：HK=SQLite优先，大陆=高德API优先（纯代码）
 │   │   ├── geo_cluster.py     # GeoClusterNode：地理聚合 + 时间约束 + 类别配比（纯代码）
 │   │   ├── route.py           # RouteNode：多维度路线决策（LLM）
 │   │   ├── enrich.py          # EnrichNode：数据补充（纯代码）
@@ -249,6 +264,7 @@ ai-route-planner/
 ├── scripts/
 │   ├── run_pipeline.py        # 完整流水线测试
 │   ├── run_intent.py          # IntentAgent 单测
+│   ├── test_20cases.py        # 三语 20 案例系统测试（A组纯逻辑/B组Intent/C组全流水线）
 │   ├── migrate_to_sqlite.py   # poi.csv → poi.db（setup.sh 自动调用）
 │   └── migrate_hk_to_csv.py  # OpenRice xlsx → poi.csv（本地维护数据用）
 ├── docs/
@@ -338,9 +354,13 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] IntentAgent 新增 prefer_local（检测"地道/本地/老字号"）+ scenarios（情侶約會/朋友聚餐/家庭親子/慶生/商務接待/一人食/打卡拍照）字段
 - [x] RouteNode LLM 决策扩展：compact 传入 8 个信号字段，system prompt 提供均值基线（risk均值0.6/queue均值0.3）和阈值指引，LLM 可精确推理踩雷风险、排队建议、地道偏好
 - [x] 所有信号字段流经 EnrichNode → 最终路线输出，前端可直接使用
+- [x] 天气感知路线（WeatherNode）：高德天气API，5类天气条件（晴/雨/高温/寒冷/恶劣），雨天/高温自动注入 prefer_indoor，RouteNode 天气感知路线策略，SSE 三语天气提示
+- [x] 实时 POI 搜索增强：大陆城市高德API优先（pref关键词精准搜索）+ 香港SQLite优先；_is_hk_city 城市识别；多关键词并发搜索去重合并
+- [x] POI 标签体系：10个正向标签 + 3个风险标签，基于评论信号字段计算，天气感知动态追加"雨天友好"，三语全覆盖（translate_tag/translate_tags）
+- [x] 小红书式攻略导出（xiaohongshu_post）：三语模板，含路线/时长/预算/场景/天气/团购/避坑/话题标签，OutputNode 无额外LLM调用
+- [x] 三语 20 案例深度测试 + 6 项 bug 修复：① zh-TW 小红书 body 含简体（city/area 未转繁体）；② dining_count=1 全餐饮候选时路线空白（_validate 条件放宽 + _force_dining_count 回退保护）；③ tags/risk_tags 固定繁体（新增 translate_tag/translate_tags 三语翻译）；④ trend_tag 自定义标签未翻译（拆解多标签逐词翻译）；⑤ culture_pref 文化/藝術等词未翻译（补充 _SUB_CATEGORY_EN）；⑥ 测试检测字符串设计缺陷（排除简繁同码字符）
 - [ ] 前后端联调（成员 C 接入 NoCode）
-- [ ] 优化加分项（小红书风格输出）+ 录制 Demo
-- [ ] 文档整理 + 提交
+- [ ] 录制 Demo + 提交
 
 ---
 

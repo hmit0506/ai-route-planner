@@ -205,7 +205,10 @@ _SUB_CATEGORY_EN: dict[str, str] = {
     "咖啡店": "Café", "甜品": "Dessert", "麵包店": "Bakery",
     "快餐": "Fast Food", "酒吧": "Bar",
     # Cultural / entertainment (for culture_pref display in English mode)
-    "博物館": "Museum", "藝術館": "Art Gallery", "藝術": "Art",
+    "文化": "Culture", "文化类": "Culture",  # bare category words used in culture_pref
+    "博物館": "Museum", "博物馆": "Museum",
+    "藝術館": "Art Gallery", "艺术馆": "Art Gallery",
+    "藝術": "Art", "艺术": "Art",
     "文化景點": "Cultural Attraction", "文化景点": "Cultural Attraction",
     "歷史建築": "Historic Site", "历史建筑": "Historic Site",
     "宗教古蹟": "Religious Heritage",
@@ -346,7 +349,38 @@ _LOCATION_EN: dict[str, str] = {
 _TREND_EN: dict[str, str] = {
     "火爆": "Trending", "新晋": "Rising", "经典": "Classic",
     "新晉": "Rising", "經典": "Classic",  # Traditional Chinese variants
+    "高德數據": "Live Data", "实时数据": "Live Data", "實時數據": "Live Data",
 }
+
+# POI tag i18n — keys are the Traditional Chinese canonical form stored in EnrichNode
+_TAG_CN: dict[str, str] = {
+    "高口碑": "高口碑",      "團購划算": "团购划算",  "性價比高": "性价比高",
+    "本地人常去": "本地人常去", "拍照出片": "拍照出片",   "低排隊": "低排队",
+    "冷門寶藏": "冷门宝藏",   "適合情侶": "适合情侣",   "親子友好": "亲子友好",
+    "雨天友好": "雨天友好",
+    "踩雷風險": "踩雷风险",   "排隊較高": "排队较高",   "網紅打卡": "网红打卡",
+}
+_TAG_EN: dict[str, str] = {
+    "高口碑": "Highly Rated",   "團購划算": "Great Deal",  "性價比高": "Value for Money",
+    "本地人常去": "Local Fav",  "拍照出片": "Photo-worthy", "低排隊": "Low Queue",
+    "冷門寶藏": "Hidden Gem",   "適合情侶": "Couple-Friendly", "親子友好": "Family-Friendly",
+    "雨天友好": "Indoor-Friendly",
+    "踩雷風險": "Risky",        "排隊較高": "Long Queue",  "網紅打卡": "Instagrammable",
+}
+
+
+def translate_tag(tag: str, lang: str = "zh-TW") -> str:
+    """Translate a POI tag from its canonical Traditional Chinese form to target language."""
+    key = normalize(lang)
+    if key == "zh-CN":
+        return _TAG_CN.get(tag, tag)
+    if key == "en":
+        return _TAG_EN.get(tag, tag)
+    return tag  # zh-TW: keep as-is (already Traditional)
+
+
+def translate_tags(tags: list[str], lang: str = "zh-TW") -> list[str]:
+    return [translate_tag(t, lang) for t in tags]
 
 _QUEUE_RISK_EN: dict[str, str] = {"高": "High", "中": "Medium", "低": "Low"}
 
@@ -359,6 +393,11 @@ _STEPS = {
     "zh-CN": {
         "intent_done":      "已解析需求：{city}{area}，{time}（{dur}小时），{party}人，预算{budget}元，{cats}{dining}",
         "dining_note":      "，{n}个餐饮活动",
+        "weather_clear":    "🌤 天气晴朗（{temp}°C），适合户外活动",
+        "weather_rain":     "🌧 今日有雨（{temp}°C），已优先安排室内路线，建议携带雨伞",
+        "weather_hot":      "☀️ 天气较热（{temp}°C），已减少户外活动，优先安排室内场所",
+        "weather_cold":     "🧥 天气较冷（{temp}°C），已优先安排室内文化场所",
+        "weather_storm":    "⛈ 恶劣天气（{temp}°C），已强制安排室内路线，注意出行安全",
         "poi_found":        "找到候选POI：{summary}",
         "geo_done":         "地理聚合完成：中心半径{r}km，时间预算{dur}小时→参考{n}站",
         "route_ok":         "✅ 路线自检通过",
@@ -376,6 +415,11 @@ _STEPS = {
     "zh-TW": {
         "intent_done":      "已解析需求：{city}{area}，{time}（{dur}小時），{party}人，預算{budget}元，{cats}{dining}",
         "dining_note":      "，{n}個餐飲活動",
+        "weather_clear":    "🌤 天氣晴朗（{temp}°C），適合戶外活動",
+        "weather_rain":     "🌧 今日有雨（{temp}°C），已優先安排室內路線，建議攜帶雨傘",
+        "weather_hot":      "☀️ 天氣較熱（{temp}°C），已減少戶外活動，優先安排室內場所",
+        "weather_cold":     "🧥 天氣較冷（{temp}°C），已優先安排室內文化場所",
+        "weather_storm":    "⛈ 惡劣天氣（{temp}°C），已強制安排室內路線，注意出行安全",
         "poi_found":        "找到候選POI：{summary}",
         "geo_done":         "地理聚合完成：中心半徑{r}km，時間預算{dur}小時→參考{n}站",
         "route_ok":         "✅ 路線自檢通過",
@@ -393,6 +437,11 @@ _STEPS = {
     "en": {
         "intent_done":      "Parsed: {city} {area} | {time} ({dur}h) | {party} pax | budget HKD {budget} | {cats}{dining}",
         "dining_note":      ", {n} meal occasion(s)",
+        "weather_clear":    "🌤 Clear weather ({temp}°C) — outdoor activities recommended",
+        "weather_rain":     "🌧 Rain today ({temp}°C) — indoor-first route selected, bring an umbrella",
+        "weather_hot":      "☀️ Hot weather ({temp}°C) — reduced outdoor stops, prioritising indoor venues",
+        "weather_cold":     "🧥 Cold weather ({temp}°C) — indoor cultural spots prioritised",
+        "weather_storm":    "⛈ Severe weather ({temp}°C) — indoor-only route enforced, stay safe",
         "poi_found":        "Found candidates: {summary}",
         "geo_done":         "Geo-cluster: radius {r}km, {dur}h → up to {n} stops",
         "route_ok":         "✅ Route validated",
@@ -414,6 +463,14 @@ def step(key: str, lang: str = "zh-TW", **kwargs) -> str:
     """Return a localized step message."""
     tpl = _STEPS[normalize(lang)].get(key, key)
     return tpl.format(**kwargs) if kwargs else tpl
+
+
+def weather_step(weather_info: dict, lang: str = "zh-TW") -> str:
+    """Return a localized weather status message."""
+    condition = weather_info.get("condition", "clear")
+    temp = weather_info.get("temperature", 0)
+    key = f"weather_{condition}" if condition in ("clear", "rain", "hot", "cold", "storm") else "weather_clear"
+    return step(key, lang, temp=int(temp))
 
 
 # ---------------------------------------------------------------------------
@@ -458,17 +515,33 @@ def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
     if field == "category":
         return _CATEGORY_EN.get(value, value)
     if field == "trend_tag":
-        # trend_tag may have suffix like "火爆（已售1.2万单）"
         import re as _re
-        m = _re.match(r"([^\（(]+)[（(]已售([\d.]+)(万?)单[）)]", value)
-        for zh, en in _TREND_EN.items():
+        # Extract sales count if present: "xxx（已售1.2万单）"
+        m = _re.search(r"[（(]已售([\d.]+)(万?)单[）)]", value)
+        sales_str = ""
+        if m:
+            n, wan = m.group(1), m.group(2)
+            sales_str = f" ({n}{'0k' if wan else ''}+ sold)"
+        # Try known prefix → English translation
+        for zh, en_label in _TREND_EN.items():
             if value.startswith(zh):
-                if m:
-                    n = m.group(2)
-                    unit = "0k+" if m.group(3) else "+"
-                    return f"{en} ({n}{unit} sold)"
-                return en
-        return value
+                return f"{en_label}{sales_str}"
+        # Custom multi-label trend_tag like "亲子友好｜交通便利（已售1273单）"
+        # Strip sales suffix and translate individual label fragments
+        _LABEL_EN: dict[str, str] = {
+            "亲子友好": "Family-Friendly", "交通便利": "Accessible",
+            "展览打卡": "Photo Spot", "文化打卡": "Cultural Spot",
+            "网红": "Trending", "性价比": "Value", "高口碑": "Highly Rated",
+            "本地特色": "Local Special", "老字号": "Heritage",
+        }
+        label_part = _re.sub(r"[（(]已售[^\)）]*[）)]", "", value).strip("｜ ")
+        parts = [p.strip() for p in label_part.split("｜") if p.strip()]
+        translated = [_LABEL_EN.get(p, p) for p in parts]
+        # If still CJK, fall back to "Popular"
+        result_label = " · ".join(translated) if translated else "Popular"
+        if any("一" <= c <= "鿿" for c in result_label):
+            result_label = "Popular"
+        return f"{result_label}{sales_str}"
     if field == "queue_risk":
         return _QUEUE_RISK_EN.get(value, value)
     if field in ("city", "area"):

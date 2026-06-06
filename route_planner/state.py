@@ -14,3 +14,5 @@ class RouteState(TypedDict):
     conversation_history: List[Dict[str, str]]
     stream_updates: List[str]
     user_memory: Dict[str, Any]          # loaded from user_id; empty dict if anonymous
+    weather: Dict[str, Any]             # WeatherNode output (condition/temp/prefer_indoor…)
+    xiaohongshu_post: str               # OutputNode: social-media style export text

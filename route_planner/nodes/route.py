@@ -34,6 +34,12 @@ _SYSTEM_PROMPT = """\
   - accessibility_mention_rate (0~1浮点，均值0.24): 无障碍/可达性短语占比，若 scenarios 含"家庭親子"应适当偏好高值POI
   - risk_signal_level / queue_signal_level: 三等分位标签（Low/Medium/High），可辅助确认 float 值的相对位置
   - scenario_tags: 场合标签（如"情侶約會;朋友聚餐"），与用户 scenarios 匹配时加分
+- 天气感知路线规则（当 intent.weather 存在时必须遵守）：
+  - condition=rain/storm：必须减少户外停留，博物馆/艺术馆/室内餐厅优先；公园/citywalk/户外景点降权或不选
+  - condition=hot（温度>=33°C）：减少户外暴晒站点，优先商场/咖啡厅/室内文化场所
+  - condition=cold（温度<=10°C）：减少户外停留时长，优先室内场所
+  - condition=clear：可正常推荐户外活动
+  - prefer_indoor=true：在候选中优先选 category 为餐饮/文化/室内的 POI，回避公园、citywalk 类
 - 只输出JSON数组，不要有任何额外文字或解释
 """
 
@@ -121,7 +127,12 @@ def _validate(selection: list, intent: dict, poi_lookup: dict, lang: str = "zh-T
     expected_dining = intent.get("dining_count", 0)
 
     if expected_dining > 0:
-        if dining_count != expected_dining:
+        # Only enforce dining_count when non-dining candidates exist to fill the remaining stops
+        all_pois = list(poi_lookup.values())
+        has_non_dining_candidates = any(
+            p.get("category") not in {"餐饮", "Dining", "餐飲"} for p in all_pois
+        )
+        if dining_count != expected_dining and has_non_dining_candidates:
             return msgs["dining_mismatch"].format(exp=expected_dining, got=dining_count)
     else:
         all_pois = list(poi_lookup.values())
@@ -166,9 +177,22 @@ class RouteNode(BaseNode):
 
         memory_hint = build_route_hint(state.get("user_memory", {}), intent)
 
+        weather = intent.get("weather", {})
+        weather_note = ""
+        if weather:
+            cond = weather.get("condition", "clear")
+            temp = weather.get("temperature", 0)
+            desc = weather.get("weather", "")
+            prefer_indoor_flag = weather.get("prefer_indoor", False)
+            weather_note = (
+                f"当前天气：{desc}，{int(temp)}°C，condition={cond}，prefer_indoor={prefer_indoor_flag}\n"
+                f"⚠️ 请严格按天气感知规则调整路线。\n"
+            )
+
         user_msg = (
             f"用户意图：{json.dumps(user_intent, ensure_ascii=False)}\n\n"
-            f"时间预算：{duration_hours}小时，参考站数{max_pois}站\n"
+            + (f"🌤 天气信息：\n{weather_note}" if weather_note else "")
+            + f"时间预算：{duration_hours}小时，参考站数{max_pois}站\n"
             f"餐饮安排：{meal_note}\n"
             + (f"偏好参考（尽量满足，无匹配时选最近似）：\n{pref_note}" if pref_note else "")
             + (f"\n{memory_hint}\n" if memory_hint else "")
@@ -240,6 +264,7 @@ class RouteNode(BaseNode):
                 "role": "user",
                 "content": _CORRECTION_PROMPT.format(reason=error, extra=extra),
             }
+            selection_before_retry = list(selection)  # keep original in case retry is worse
             selection = call_llm(messages + [correction_msg, retry_msg], parse_json=True)
             _enrich_category(selection)
             # Code-level enforcement: if dining_count still wrong after retry, force it
@@ -247,6 +272,9 @@ class RouteNode(BaseNode):
                 actual = sum(1 for s in selection if s.get("category") in _DINING_CATS)
                 if actual != expected_dining:
                     selection = _force_dining_count(selection, expected_dining)
+                # Safety: if force produced empty, fall back to original selection
+                if not selection:
+                    selection = selection_before_retry
         else:
             updates.append(i18n.step("route_ok", lang))
 

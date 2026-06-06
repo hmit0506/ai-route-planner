@@ -43,63 +43,120 @@ def _is_open(business_hours: str, time_range: dict | None) -> bool:
         return True
 
 
-def _amap_search(city: str, area: str, category: str, limit: int = 8) -> list[dict]:
+def _safe_float(val, default: float = 0.0) -> float:
+    try:
+        return float(val) if val else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _is_hk_city(city: str) -> bool:
+    """Return True when the city is Hong Kong — where our SQLite has rich local data."""
+    c = city.strip().lower()
+    return "香港" in c or c in ("hk", "hong kong", "hongkong")
+
+
+_DEFAULT_AMAP_KW = {
+    "餐饮": ["餐厅", "美食"],
+    "文化": ["博物馆", "美术馆", "旅游景点", "文化场馆", "艺术馆"],
+    "娱乐": ["娱乐休闲", "主题公园", "电影院"],
+    "自然": ["公园", "自然风景"],
+    "购物": ["购物中心", "商场"],
+}
+
+
+def _amap_search(
+    city: str,
+    area: str,
+    category: str,
+    pref_keywords: list[str] | None = None,
+    limit: int = 12,
+) -> list[dict]:
+    """Search Gaode place/text API with preference-aware keywords.
+
+    When pref_keywords is provided (e.g. ['日本料理', '壽司']), each keyword is
+    searched and results merged + deduplicated for higher relevance.
+    """
     amap_key = os.environ.get("AMAP_API_KEY", "")
     if not amap_key:
         return []
-    type_kw = {
-        "餐饮": "餐厅|美食",
-        "文化": "博物馆|景点|文化场馆|旅游景点",
-        "娱乐": "娱乐休闲|主题公园",
-    }.get(category, category)
-    keywords = f"{area}{type_kw}" if area else type_kw
-    params = urllib.parse.urlencode({
-        "keywords": keywords,
-        "city": city,
-        "key": amap_key,
-        "output": "json",
-        "offset": str(limit),
-        "extensions": "all",
-    })
-    try:
-        with urllib.request.urlopen(
-            f"https://restapi.amap.com/v3/place/text?{params}", timeout=5
-        ) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return []
-    if data.get("status") != "1" or not data.get("pois"):
-        return []
-    result = []
-    for p in data["pois"][:limit]:
+
+    search_terms = pref_keywords if pref_keywords else _DEFAULT_AMAP_KW.get(category, [category])
+    combined_kw  = "|".join(search_terms[:6])
+    keywords     = f"{area}{combined_kw}" if area else combined_kw
+
+    def _call_api(kw: str) -> list:
+        params = urllib.parse.urlencode({
+            "keywords": kw,
+            "city": city,
+            "key": amap_key,
+            "output": "json",
+            "offset": str(limit),
+            "extensions": "all",
+            "citylimit": "true",
+        })
+        try:
+            with urllib.request.urlopen(
+                f"https://restapi.amap.com/v3/place/text?{params}", timeout=5
+            ) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            return []
+        if data.get("status") != "1":
+            return []
+        return data.get("pois") or []
+
+    raw_pois  = _call_api(keywords)
+    # If combined search returns too few AND we have specific prefs, search each individually
+    if len(raw_pois) < 3 and pref_keywords and len(pref_keywords) > 1:
+        seen: set[str] = {p.get("id", "") for p in raw_pois}
+        for kw in pref_keywords[:4]:
+            for p in _call_api(f"{area}{kw}" if area else kw):
+                if p.get("id", "") not in seen:
+                    raw_pois.append(p)
+                    seen.add(p.get("id", ""))
+            if len(raw_pois) >= limit:
+                break
+
+    result: list[dict] = []
+    seen_final: set[str] = set()
+    for p in raw_pois[:limit]:
+        pid = p.get("id", "")
+        if pid in seen_final:
+            continue
+        seen_final.add(pid)
         loc = (p.get("location") or "0,0").split(",")
         biz = p.get("biz_ext") or {}
         try:
             lat, lng = float(loc[1]), float(loc[0])
         except (IndexError, ValueError):
             continue
+        type_str = (p.get("type") or "")
+        sub_cat  = type_str.split(";")[-1] if type_str else category
         result.append({
-            "id": f"amap_{p.get('id', '')}",
+            "id": f"amap_{pid}",
             "name": p.get("name", ""),
             "name_en": "",
             "category": category,
-            "sub_category": (p.get("type") or "").split(";")[-1],
+            "sub_category": sub_cat,
             "address": p.get("address", "") or "",
             "address_en": "",
             "city": city,
             "area": area,
             "lat": lat,
             "lng": lng,
-            "rating": float(biz.get("rating") or 0),
+            "rating": _safe_float(biz.get("rating")),
             "taste_rating": 0.0, "decor_rating": 0.0, "service_rating": 0.0,
             "hygiene_rating": 0.0, "value_rating": 0.0,
-            "review_count": 0, "half_year_sales": 0,
-            "avg_price_per_person": float(biz.get("cost") or 0),
+            "review_count": int(biz.get("comment_num") or 0),
+            "half_year_sales": 0,
+            "avg_price_per_person": _safe_float(biz.get("cost")),
             "queue_risk": "低", "queue_minutes_peak": 0, "queue_minutes_offpeak": 0,
             "has_group_buy": 0, "group_buy_title": "",
             "group_buy_original_price": 0.0, "group_buy_current_price": 0.0,
             "business_hours": p.get("opentime_week") or "",
-            "trend_tag": "高德數據", "recommend_count": 0,
+            "trend_tag": "實時數據",
+            "recommend_count": int(biz.get("comment_num") or 0),
         })
     return result
 
@@ -131,6 +188,58 @@ def _signal_order_sql(prefer_local: bool, scenarios: list[str]) -> str:
     return ", ".join(parts) + ", " if parts else ""
 
 
+def _query_db(
+    city: str, area: str, category: str,
+    pref_sub_categories: list, avoid_sub_categories: list,
+    budget_pp: float, prefer_local: bool, scenarios: list, limit: int,
+) -> tuple[list[dict], bool]:
+    """Query local SQLite. Returns (rows, used_city_fallback)."""
+    conn = sqlite3.connect(_DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    city_pat  = f"%{city}%" if city else "%"
+    area_pat  = f"%{area}%" if area else "%"
+    price_cap = budget_pp * 1.2
+
+    pref_cases  = " ".join(f"WHEN sub_category LIKE '%{p}%' THEN {i}" for i, p in enumerate(pref_sub_categories))
+    pref_order  = f"CASE {pref_cases} ELSE {len(pref_sub_categories)} END," if pref_cases else ""
+    signal_order = _signal_order_sql(prefer_local, scenarios)
+
+    if avoid_sub_categories:
+        placeholders  = ",".join("?" * len(avoid_sub_categories))
+        avoid_clause  = f"AND sub_category NOT IN ({placeholders})"
+        avoid_params  = avoid_sub_categories
+    else:
+        avoid_clause  = ""
+        avoid_params  = []
+
+    sql = f"""
+        SELECT * FROM pois
+        WHERE city LIKE ? AND area LIKE ? AND category = ?
+          AND avg_price_per_person <= ?
+          {avoid_clause}
+        ORDER BY {signal_order}{pref_order} rating DESC
+        LIMIT ?
+    """
+    rows = conn.execute(sql, [city_pat, area_pat, category, price_cap] + avoid_params + [limit]).fetchall()
+
+    used_city_fallback = False
+    if len(rows) < 3 and area:
+        sql_fb = f"""
+            SELECT * FROM pois
+            WHERE city LIKE ? AND category = ?
+              AND avg_price_per_person <= ?
+              {avoid_clause}
+            ORDER BY {signal_order}{pref_order} rating DESC
+            LIMIT ?
+        """
+        rows = conn.execute(sql_fb, [city_pat, category, price_cap] + avoid_params + [limit]).fetchall()
+        used_city_fallback = True
+
+    conn.close()
+    return [dict(r) for r in rows], used_city_fallback
+
+
 def _query_category(
     city: str,
     area: str,
@@ -144,87 +253,61 @@ def _query_category(
     scenarios: list | None = None,
     limit: int = 10,
 ) -> tuple[list[dict], bool]:
-    """Return (results, used_amap_fallback)."""
-    scenarios = scenarios or []
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """Return (results, used_amap).
 
-    city_pat = f"%{city}%" if city else "%"
-    area_pat = f"%{area}%" if area else "%"
-    price_cap = budget_pp * 1.2
-
-    pref_cases = " ".join(
-        f"WHEN sub_category LIKE '%{p}%' THEN {i}" for i, p in enumerate(pref_sub_categories)
-    )
-    pref_order = f"CASE {pref_cases} ELSE {len(pref_sub_categories)} END," if pref_cases else ""
-    signal_order = _signal_order_sql(prefer_local, scenarios)
-
-    if avoid_sub_categories:
-        placeholders = ",".join("?" * len(avoid_sub_categories))
-        avoid_clause = f"AND sub_category NOT IN ({placeholders})"
-        avoid_params = avoid_sub_categories
-    else:
-        avoid_clause = ""
-        avoid_params = []
-
-    sql = f"""
-        SELECT * FROM pois
-        WHERE city LIKE ?
-          AND area LIKE ?
-          AND category = ?
-          AND avg_price_per_person <= ?
-          {avoid_clause}
-        ORDER BY {signal_order}{pref_order} rating DESC
-        LIMIT ?
+    Strategy:
+    - Hong Kong cities  → SQLite-first (rich local data), Amap as fallback
+    - Mainland cities   → Amap-first (real-time results), SQLite as fallback
     """
-    params = [city_pat, area_pat, category, price_cap] + avoid_params + [limit]
-    rows = conn.execute(sql, params).fetchall()
+    scenarios  = scenarios or []
+    is_hk      = _is_hk_city(city)
+    used_amap  = False
 
-    used_city_fallback = False
-    if len(rows) < 3 and area:
-        sql_fb = f"""
-            SELECT * FROM pois
-            WHERE city LIKE ?
-              AND category = ?
-              AND avg_price_per_person <= ?
-              {avoid_clause}
-            ORDER BY {signal_order}{pref_order} rating DESC
-            LIMIT ?
-        """
-        params_fb = [city_pat, category, price_cap] + avoid_params + [limit]
-        rows = conn.execute(sql_fb, params_fb).fetchall()
-        used_city_fallback = True
+    if is_hk:
+        # ---- HK path: SQLite → Amap fallback ----
+        results, used_city_fb = _query_db(
+            city, area, category, pref_sub_categories, avoid_sub_categories,
+            budget_pp, prefer_local, scenarios, limit
+        )
+        area_mismatch = (
+            used_city_fb and area and
+            not any(area in (r.get("area") or "") for r in results)
+        )
+        if visited_ids:
+            results = [r for r in results if r["id"] not in visited_ids]
+        if time_range:
+            open_r = [r for r in results if _is_open(r.get("business_hours", ""), time_range)]
+            if len(open_r) >= 3:
+                results = open_r
 
-    conn.close()
-    results = [dict(r) for r in rows]
+        if len(results) < 3 or area_mismatch:
+            amap_rows = _amap_search(city, area, category, pref_keywords=pref_sub_categories or None)
+            if visited_ids:
+                amap_rows = [r for r in amap_rows if r["id"] not in visited_ids]
+            if amap_rows:
+                results = amap_rows if area_mismatch else results + amap_rows
+                used_amap = True
 
-    # If we fell back to city-level AND none of the results match the target area,
-    # treat the local DB as "no coverage" for this area and try Amap directly.
-    area_mismatch = (
-        used_city_fallback and area and
-        not any(area in (r.get("area") or "") for r in results)
-    )
-
-    # Filter visited POIs
-    if visited_ids:
-        results = [r for r in results if r["id"] not in visited_ids]
-
-    # Filter by business hours (soft: keep if too few remain)
-    if time_range:
-        open_results = [r for r in results if _is_open(r.get("business_hours", ""), time_range)]
-        if len(open_results) >= 3:
-            results = open_results
-
-    # Amap fallback: (a) DB insufficient, or (b) all results are from wrong area
-    used_amap = False
-    if len(results) < 3 or area_mismatch:
-        amap_rows = _amap_search(city, area, category)
+    else:
+        # ---- Mainland path: Amap-first (real-time), SQLite as supplement ----
+        amap_rows = _amap_search(city, area, category, pref_keywords=pref_sub_categories or None)
         if visited_ids:
             amap_rows = [r for r in amap_rows if r["id"] not in visited_ids]
         if amap_rows:
-            # Prefer Amap results over wrong-area DB results when area mismatch
-            results = amap_rows if area_mismatch else results + amap_rows
             used_amap = True
+            results   = amap_rows
+        else:
+            # Amap failed → fall through to SQLite
+            results, _ = _query_db(
+                city, area, category, pref_sub_categories, avoid_sub_categories,
+                budget_pp, prefer_local, scenarios, limit
+            )
+            if visited_ids:
+                results = [r for r in results if r["id"] not in visited_ids]
+            if time_range:
+                open_r = [r for r in results if _is_open(r.get("business_hours", ""), time_range)]
+                if len(open_r) >= 3:
+                    results = open_r
 
     return results, used_amap
 

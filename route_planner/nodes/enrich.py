@@ -4,6 +4,85 @@ from route_planner.node import BaseNode
 from route_planner.state import RouteState
 import route_planner.i18n as i18n
 
+# ---------------------------------------------------------------------------
+# POI tag system
+# ---------------------------------------------------------------------------
+
+_INDOOR_SUB_CATS = {
+    "博物館", "博物馆", "美術館", "美术馆", "藝術館", "艺术馆", "商場", "商场",
+    "室內展覽", "室内展览", "圖書館", "图书馆", "電影院", "电影院",
+    "茶餐廳", "咖啡店", "甜品", "麵包店", "餐廳", "餐厅", "火鍋", "火锅",
+}
+
+_OUTDOOR_SUB_CATS = {
+    "公園", "公园", "郊野公園", "郊野公园", "泳灘", "海灘", "海滩",
+    "城市地標", "城市地标", "觀景地標", "旅遊景點", "旅游景点",
+}
+
+
+def _compute_tags(poi: dict, scenarios: list, weather: dict) -> tuple[list[str], list[str]]:
+    """Return (positive_tags, risk_tags) for a single POI."""
+    tags: list[str] = []
+    risk_tags: list[str] = []
+
+    rating         = poi.get("rating") or 0
+    review_count   = poi.get("review_count") or 0
+    value_rating   = poi.get("value_rating") or 0
+    has_gb         = bool(poi.get("has_group_buy"))
+    orig_price     = poi.get("group_buy_original_price") or 0
+    curr_price     = poi.get("group_buy_current_price") or 0
+    half_sales     = poi.get("half_year_sales") or 0
+    sub_cat        = poi.get("sub_category", "")
+    scen_tags      = poi.get("scenario_tags", "") or ""
+
+    rl   = poi.get("risk_signal_level", "")
+    ql   = poi.get("queue_signal_level", "")
+    ll   = poi.get("local_authenticity_level", "")
+    pl   = poi.get("photo_hotness_level", "")
+    rmr  = poi.get("risk_mention_rate")
+    qmr  = poi.get("queue_mention_rate")
+    lmr  = poi.get("local_mention_rate")
+    pmr  = poi.get("photo_mention_rate")
+
+    # Positive tags
+    if rating >= 4.5 and review_count > 200:
+        tags.append("高口碑")
+    if has_gb and orig_price > 0 and curr_price > 0 and (orig_price - curr_price) / orig_price >= 0.2:
+        tags.append("團購划算")
+    if value_rating >= 4.5 or (rating >= 4.3 and poi.get("avg_price_per_person", 999) < 80):
+        tags.append("性價比高")
+    if ll == "High" or (lmr is not None and lmr >= 0.55):
+        tags.append("本地人常去")
+    if pl == "High" or (pmr is not None and pmr >= 0.35):
+        tags.append("拍照出片")
+    if ql == "Low" or (qmr is not None and qmr <= 0.12):
+        tags.append("低排隊")
+    if half_sales < 800 and rating >= 4.3 and review_count > 30:
+        tags.append("冷門寶藏")
+    if "情侶約會" in scen_tags or "情侣约会" in scen_tags:
+        tags.append("適合情侶")
+    if "家庭親子" in scen_tags or "家庭亲子" in scen_tags:
+        tags.append("親子友好")
+
+    # Weather-aware: indoor tag
+    if weather.get("prefer_indoor"):
+        is_indoor = (
+            any(w in sub_cat for w in _INDOOR_SUB_CATS)
+            or poi.get("category") in {"餐饮", "Dining", "餐飲"}
+        )
+        if is_indoor:
+            tags.append("雨天友好")
+
+    # Risk tags
+    if rl == "High" or (rmr is not None and rmr >= 0.75):
+        risk_tags.append("踩雷風險")
+    if ql == "High" or (qmr is not None and qmr >= 0.45):
+        risk_tags.append("排隊較高")
+    if half_sales >= 5000 and (poi.get("year_max") or 0) >= 2024:
+        risk_tags.append("網紅打卡")  # popular but might be crowded
+
+    return tags, risk_tags
+
 
 def _group_buy(poi: dict) -> dict | None:
     if not poi.get("has_group_buy"):
@@ -52,6 +131,8 @@ class EnrichNode(BaseNode):
         lang = state.get("language", "zh-TW")
         food_pref = intent.get("food_pref", [])
         culture_pref = intent.get("culture_pref", [])
+        scenarios = intent.get("scenarios", [])
+        weather = state.get("weather", {})
 
         poi_lookup: dict[str, dict] = {
             poi["id"]: poi
@@ -69,6 +150,9 @@ class EnrichNode(BaseNode):
                 continue
             matched = _check_pref_match(poi, food_pref, culture_pref)
             tf = lambda field, val: i18n.translate_field(field, val, lang)
+            pos_tags_raw, risk_tags_raw = _compute_tags(poi, scenarios, weather)
+            pos_tags  = i18n.translate_tags(pos_tags_raw,  lang)
+            risk_tags = i18n.translate_tags(risk_tags_raw, lang)
             enriched.append({
                 "poi_id": poi_id,
                 "order": item.get("order", len(enriched) + 1),
@@ -109,6 +193,8 @@ class EnrichNode(BaseNode):
                 "local_authenticity_level": poi.get("local_authenticity_level", ""),
                 "photo_hotness_level": poi.get("photo_hotness_level", ""),
                 "scenario_tags": poi.get("scenario_tags", ""),
+                "tags": pos_tags,
+                "risk_tags": risk_tags,
             })
 
         enriched.sort(key=lambda x: x["order"])

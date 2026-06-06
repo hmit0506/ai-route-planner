@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 
 from route_planner.state import RouteState
 from route_planner.nodes.intent import IntentNode
+from route_planner.nodes.weather import WeatherNode
 from route_planner.nodes.poi_search import POISearchNode
 from route_planner.nodes.geo_cluster import GeoClusterNode
 from route_planner.nodes.route import RouteNode
@@ -15,6 +16,7 @@ def build_graph() -> StateGraph:
     graph = StateGraph(RouteState)
 
     graph.add_node("intent", IntentNode())
+    graph.add_node("weather", WeatherNode())
     graph.add_node("poi_search", POISearchNode())
     graph.add_node("geo_cluster", GeoClusterNode())
     graph.add_node("route", RouteNode())
@@ -22,7 +24,8 @@ def build_graph() -> StateGraph:
     graph.add_node("output", OutputNode())
 
     graph.set_entry_point("intent")
-    graph.add_edge("intent", "poi_search")
+    graph.add_edge("intent", "weather")
+    graph.add_edge("weather", "poi_search")
     graph.add_edge("poi_search", "geo_cluster")
     graph.add_edge("geo_cluster", "route")
     graph.add_edge("route", "enrich")

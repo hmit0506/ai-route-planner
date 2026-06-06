@@ -152,6 +152,8 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         "conversation_history": req.conversation_history,
         "stream_updates": [],
         "user_memory": mem,
+        "weather": {},
+        "xiaohongshu_post": "",
     }
 
     prev_steps: list[str] = []
@@ -204,6 +206,8 @@ def _format_result(state: RouteState) -> dict:
         "summary": state.get("summary", ""),
         "fulfillment_notes": state.get("fulfillment_notes", {}),
         "agent_steps": state.get("stream_updates", []),
+        "weather": state.get("weather", {}),
+        "xiaohongshu_post": state.get("xiaohongshu_post", ""),
     }
 
 
@@ -238,6 +242,8 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
         "conversation_history": req.conversation_history,
         "stream_updates": [],
         "user_memory": user_memory.load(req.user_id) if req.user_id else {},
+        "weather": {},
+        "xiaohongshu_post": "",
     }
 
     prev_steps: list[str] = []

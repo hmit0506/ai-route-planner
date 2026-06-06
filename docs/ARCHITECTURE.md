@@ -25,10 +25,15 @@
   ┌─────────────┐
   │ IntentNode  │  LLM①：CoT推理 + 结构化意图 JSON，代码层自动校验
   └──────┬──────┘
-         │ intent: {city, area, duration_hours, budget, food_pref, ...}
+         │ intent: {city, area, duration_hours, budget, food_pref, prefer_local, scenarios, ...}
+         ▼
+  ┌─────────────┐
+  │ WeatherNode │  纯代码：高德天气 API，注入 weather + prefer_indoor 到 intent
+  └──────┬──────┘
+         │ intent.weather: {condition, temperature, prefer_indoor, ...}
          ▼
   ┌──────────────────┐
-  │ POISearchNode    │  纯代码：SQLite 查询，按城市/商圈/类别召回 Top-10 候选
+  │ POISearchNode    │  纯代码：HK=SQLite优先；大陆=高德API优先（pref关键词精准搜索）
   └────────┬─────────┘
            │ candidates: {"餐饮": [...], "文化": [...]}
            ▼
@@ -43,15 +48,15 @@
          │ route: [{poi_id, order, stay_minutes}, ...]
          ▼
   ┌─────────────┐
-  │ EnrichNode  │  纯代码：poi_id → 完整字段，计算展示用派生字段
+  │ EnrichNode  │  纯代码：poi_id → 完整字段，计算排队提示/团购/趋势/POI标签（三语）
   └──────┬──────┘
-         │ route: [{name, rating, queue_risk_tip, group_buy, ...}, ...]
+         │ route: [{name, rating, queue_risk_tip, group_buy, tags, risk_tags, ...}, ...]
          ▼
   ┌─────────────┐
-  │ OutputNode  │  纯代码：步行路径、导航链接、静态地图 URL、摘要
+  │ OutputNode  │  纯代码：步行路径、导航链接、静态地图URL、摘要、小红书导出
   └──────┬──────┘
          ▼
-  最终路线 JSON（含 transport_polyline）+ 高德静态地图 URL
+  最终路线 JSON + 静态地图 URL + xiaohongshu_post + weather
 ```
 
 **首次生成仅 2 次 LLM 调用**，其余均为纯代码，配合 SSE 流式推送保证 < 10 秒响应。
@@ -89,7 +94,7 @@
 class RouteState(TypedDict):
     user_input: str               # 原始用户输入，全程不变
     language: str                 # "zh-TW" | "zh-CN" | "en"，由请求注入，全程传递
-    intent: dict                  # IntentNode 写入；_refine 子键由 RefineNode 写入
+    intent: dict                  # IntentNode 写入；WeatherNode 追加 weather 子键；_refine 子键由 RefineNode 写入
     candidates: dict              # POISearchNode 写入，GeoClusterNode 过滤后更新
     route: list                   # RouteNode 写入骨架，Enrich/Output 逐步丰富
     locked_nodes: list            # 多轮对话中用户满意不替换的节点索引（0-based）
@@ -99,6 +104,8 @@ class RouteState(TypedDict):
     conversation_history: list    # 跨轮保留，传入 IntentNode
     stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
     user_memory: dict             # app 层从 user_id 加载，空 dict 表示匿名；路线完成后异步更新
+    weather: dict                 # WeatherNode 写入：{condition, temperature, prefer_indoor, is_rainy, ...}
+    xiaohongshu_post: str         # OutputNode 写入：小红书式攻略文本（三语模板）
 ```
 
 每个节点只写自己关心的字段，其余透传（`{**state, "key": new_value}`）。
@@ -158,15 +165,53 @@ class RouteState(TypedDict):
 
 ---
 
-### 4.2 POISearchNode（纯代码）
+### 4.2 WeatherNode（纯代码）
 
-**职责**：从 SQLite 数据库（`poi.db`，由 `poi.csv` 启动时生成）按条件召回候选。
+**职责**：在 IntentNode 之后，通过高德天气 API 获取用户出行日期/时段的实际天气预报，并将天气信息注入 intent，供 RouteNode 做天气感知路线调整。
+
+**天气 API**：`https://restapi.amap.com/v3/weather/weatherInfo?extensions=all`（未来 4 天预报）。城市名 → adcode 内建映射（上海/北京/广州/深圳/香港等 20 城）。
+
+**日期解析**：将 intent.date 的自然语言描述（"今天"/"明天"/"周末"/"today"/"weekend"）转换为 YYYY-MM-DD，按用户时段选择白天/夜间天气。
+
+**天气分类**：
+
+| condition | 触发条件 | prefer_indoor |
+|---|---|---|
+| `storm` | 包含"暴"/"台風" | true |
+| `rain` | 包含"雨"的任意描述 | true |
+| `hot` | 白天气温 ≥ 33°C | true |
+| `cold` | 气温 ≤ 10°C | false |
+| `clear` | 其余 | false |
+
+**注入 intent**：
+- `intent["weather"]`：完整天气信息字典（date/weather/temperature/condition/prefer_indoor/is_rainy/is_hot/is_cold）
+- `intent["prefer_indoor"]`：布尔值，RouteNode system prompt 中有对应的天气感知规则（condition=rain/storm 时减少户外 POI，condition=hot 时优先商场/咖啡厅/室内文化）
+
+**SSE 输出**：三语天气步骤消息（🌧雨天/☀️高温/🌤晴朗/🧥寒冷/⛈恶劣），告知用户路线已做天气调整。
+
+---
+
+### 4.3 POISearchNode（纯代码）
+
+**职责**：根据 intent 召回 POI 候选，优先使用实时数据（大陆城市）或本地高质量数据（香港）。
+
+**双路召回策略**：
+
+| 城市类型 | 主路径 | 备路径 |
+|---|---|---|
+| 香港（`_is_hk_city`返回 True） | SQLite 本地库（18,075条丰富香港数据） | 高德 API 兜底（<3条时触发） |
+| 大陆及其他城市 | 高德 Place Search API（实时数据） | SQLite（高德失败时） |
+
+**高德搜索增强（`_amap_search`）**：
+- `pref_keywords` 参数：将 `food_pref`/`culture_pref` 直接作为搜索关键词（如 `["日本料理","壽司"]`），比宽泛的"餐厅|美食"精准得多
+- 合并搜索：先用 `"日本料理|壽司"` 一次 OR 查询；若结果 < 3 条且关键词多于 1 个，再逐关键词单独搜索并去重合并
+- `citylimit=true`：结果严格限制在目标城市内
 
 **数据源**：`poi.csv`（提交到 git，人工维护）→ `setup.sh` 迁移为 `poi.db`（不提交 git）。
 
 **类别名规范化（`_normalize_cat`）**：`must_include_categories` 中的值可能来自英文模式路线的翻译结果（如 `"Dining"`、`"Culture"`）或繁体（`"餐飲"`），统一规范化为数据库内部的简体值（`"餐饮"`、`"文化"`、`"娱乐"`）再查询，避免 refine 时出现 0 候选。
 
-**召回策略**：
+**SQLite 召回策略（香港 / 高德失败时）**：
 0. **信号驱动预排序**（ORDER BY 最高优先级，基于真实评论数据）：
    - `risk_mention_rate ASC`：始终生效，低负面评论优先
    - `year_max DESC`：始终生效，近年仍有评论的（可能仍营业）优先
@@ -266,13 +311,33 @@ class RouteState(TypedDict):
 |---|---|
 | `queue_risk_tip` | 按语言输出：高→"晚高峰等位约N分钟"／"Peak hours wait ~N min"；支持三种语言 |
 | `group_buy.discount` | `current_price / original_price × 10`，格式"6.8折" |
-| `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；英文模式→"Trending (1.2k+ sold)" |
+| `trend_tag` | 销量 ≥ 1万→"火爆（已售1.2万单）"；英文模式→"Trending (1.2k+ sold)"；自定义多标签→"Family-Friendly · Accessible (1273+ sold)" |
+| `tags` | 正向标签列表（见下表），按 language 翻译后输出 |
+| `risk_tags` | 风险标签列表（见下表），按 language 翻译后输出 |
+
+**POI 标签体系**：
+
+| 标签（zh-TW 规范形）| zh-CN | en | 触发条件 |
+|---|---|---|---|
+| 高口碑 | 高口碑 | Highly Rated | rating ≥ 4.5 且 review_count > 200 |
+| 團購划算 | 团购划算 | Great Deal | has_group_buy 且折扣 ≥ 20% |
+| 性價比高 | 性价比高 | Value for Money | value_rating ≥ 4.5 或 rating ≥ 4.3 且人均 < 80 |
+| 本地人常去 | 本地人常去 | Local Fav | local_authenticity_level=High 或 local_mention_rate ≥ 0.55 |
+| 拍照出片 | 拍照出片 | Photo-worthy | photo_hotness_level=High 或 photo_mention_rate ≥ 0.35 |
+| 低排隊 | 低排队 | Low Queue | queue_signal_level=Low 或 queue_mention_rate ≤ 0.12 |
+| 冷門寶藏 | 冷门宝藏 | Hidden Gem | half_year_sales < 800 且 rating ≥ 4.3 且 review_count > 30 |
+| 適合情侶 | 适合情侣 | Couple-Friendly | scenario_tags 含"情侶約會" |
+| 親子友好 | 亲子友好 | Family-Friendly | scenario_tags 含"家庭親子" |
+| 雨天友好 | 雨天友好 | Indoor-Friendly | weather.prefer_indoor=True 且 POI 为餐饮/室内场馆 |
+| 踩雷風險 | 踩雷风险 | Risky | risk_signal_level=High 或 risk_mention_rate ≥ 0.75 |
+| 排隊較高 | 排队较高 | Long Queue | queue_signal_level=High 或 queue_mention_rate ≥ 0.45 |
+| 網紅打卡 | 网红打卡 | Instagrammable | half_year_sales ≥ 5000 且 year_max ≥ 2024 |
 
 **字段级翻译**（`language="en"` 时）：
-- `sub_category`："日本料理、壽司" → "Japanese / Sushi"（餐饮 75 词 + 文化类 15+ 词，如 博物館→Museum、歷史建築→Historic Site、旅遊景點→Tourist Attraction）
+- `sub_category`："日本料理、壽司" → "Japanese / Sushi"（餐饮 75 词 + 文化类 20+ 词，如 博物館→Museum、歷史建築→Historic Site、文化→Culture）
 - `category`："餐饮" → "Dining"
 - `queue_risk`："高" → "High"
-- `trend_tag`："火爆" → "Trending"
+- `trend_tag`：标准词("火爆")→"Trending"；自定义多标签("亲子友好｜交通便利")→逐标签翻译
 
 多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
@@ -296,6 +361,12 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 | `navigation_url` | 高德 URI Scheme，手机点击跳转导航 App |
 
 **步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时，而非原来的 N×3s。
+
+**小红书式攻略导出（`_build_xiaohongshu`）**：不额外调用 LLM，使用三语模板生成 `xiaohongshu_post` 字段：
+- 结构：📍路线标题 → 🗺路线 → ⏱时长 → 💰预算 → 👥场景 → 🌤天气提醒 → 🎟团购亮点 → ⚠️避坑 → #话题标签
+- city/area 按语言转换（zh-TW→繁体；zh-CN→简体；en→英文地名）
+- POI 名字在 route 行保留中文（专有名词天然是中文），模板结构行无 CJK
+- 天气感知：雨天/暴雨自动追加"已安排室内路线，记得带伞☂️"
 
 **静态地图 URL 构造**：高德 REST API，含标记点（A/B/C...）+ 步行路径蓝线（每段限 40 个坐标点，防 URL 超长）。步行 API 失败时降级为仅标记点。
 
@@ -401,8 +472,11 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `time_str(mins, lang)` | 时长格式化（3小时30分 / 3h 30min） |
 | `summary(n, mins, budget, deals, lang)` | 行程总结语句 |
 | `f(key, lang, **kwargs)` | 履约报告模板（dining_ok / dining_mismatch / dining_excess / food_ok / food_miss / culture_ok / culture_miss / avoid_violated 等，含双向 dining 判断） |
-| `step(key, lang, **kwargs)` | SSE 进度消息（覆盖全部 8 个节点） |
-| `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk / city / area |
+| `step(key, lang, **kwargs)` | SSE 进度消息（覆盖全部节点，含 WeatherNode 5 条天气消息） |
+| `weather_step(weather_info, lang)` | 天气步骤消息（🌧雨天/☀️高温/🌤晴朗/🧥寒冷/⛈恶劣），三语 |
+| `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk / city / area；trend_tag 支持自定义多标签分解翻译 |
+| `translate_tag(tag, lang)` | 单个 POI 标签翻译（繁体规范形 → zh-CN 简体 / en 英文） |
+| `translate_tags(tags, lang)` | 批量翻译标签列表 |
 | `to_traditional(text)` | 简→繁转换，基于 OpenCC（`s2t` 模式，覆盖所有汉字） |
 | `to_simplified(text)` | 繁→简转换，基于 OpenCC（`t2s` 模式），用于 zh-CN 模式字段值展示 |
 

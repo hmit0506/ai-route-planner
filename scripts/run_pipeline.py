@@ -52,6 +52,9 @@ initial_state: RouteState = {
     "fulfillment_notes": {},
     "conversation_history": [],
     "stream_updates": [],
+    "user_memory": {},
+    "weather": {},
+    "xiaohongshu_post": "",
 }
 
 graph = build_graph()

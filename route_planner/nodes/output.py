@@ -176,6 +176,172 @@ def _build_fulfillment(route: list, intent: dict, lang: str = "zh-TW") -> dict:
 
 _DINING_CATS = {"餐饮", "Dining", "餐飲"}
 
+_XHS_TEMPLATE = {
+    "zh-TW": (
+        "📍{city}{area}路線｜{party}人｜預算{budget}元\n"
+        "🗺 {route_stops}\n"
+        "⏱ 全程約{total_hours}小時\n"
+        "💰 總消費約{total_cost}元，人均{per_person}元\n"
+        "{scenarios_line}"
+        "{weather_line}"
+        "{deal_line}"
+        "{risk_line}"
+        "{hashtags}"
+    ),
+    "zh-CN": (
+        "📍{city}{area}路线｜{party}人｜预算{budget}元\n"
+        "🗺 {route_stops}\n"
+        "⏱ 全程约{total_hours}小时\n"
+        "💰 总消费约{total_cost}元，人均{per_person}元\n"
+        "{scenarios_line}"
+        "{weather_line}"
+        "{deal_line}"
+        "{risk_line}"
+        "{hashtags}"
+    ),
+    "en": (
+        "📍 {city} {area} Route | {party} pax | Budget HKD {budget}\n"
+        "🗺 {route_stops}\n"
+        "⏱ Approx {total_hours}h total\n"
+        "💰 Est. HKD {total_cost} total, HKD {per_person}/person\n"
+        "{scenarios_line}"
+        "{weather_line}"
+        "{deal_line}"
+        "{risk_line}"
+        "{hashtags}"
+    ),
+}
+
+_SCENARIOS_DISPLAY = {
+    "zh-TW": {
+        "情侶約會": "情侶約會", "情侣约会": "情侶約會",
+        "朋友聚餐": "朋友聚餐", "家庭親子": "親子遊", "家庭亲子": "親子遊",
+        "慶生": "慶生", "庆生": "慶生", "一人食": "一人食",
+        "打卡拍照": "拍照打卡", "商務接待": "商務接待", "商务接待": "商務接待",
+    },
+    "zh-CN": {
+        "情侶約會": "情侣约会", "情侣约会": "情侣约会",
+        "朋友聚餐": "朋友聚餐", "家庭親子": "亲子游", "家庭亲子": "亲子游",
+        "慶生": "庆生", "庆生": "庆生", "一人食": "一人食",
+        "打卡拍照": "拍照打卡", "商務接待": "商务接待", "商务接待": "商务接待",
+    },
+    "en": {
+        "情侶約會": "Couples", "情侣约会": "Couples",
+        "朋友聚餐": "Friends", "家庭親子": "Families", "家庭亲子": "Families",
+        "慶生": "Birthdays", "庆生": "Birthdays", "一人食": "Solo",
+        "打卡拍照": "Photo Lovers", "商務接待": "Business", "商务接待": "Business",
+    },
+}
+
+
+def _build_xiaohongshu(route: list, intent: dict, weather: dict, lang: str = "zh-TW") -> str:
+    lang_key = i18n.normalize(lang)
+    tpl      = _XHS_TEMPLATE.get(lang_key, _XHS_TEMPLATE["zh-TW"])
+    sc_map   = _SCENARIOS_DISPLAY.get(lang_key, _SCENARIOS_DISPLAY["zh-TW"])
+
+    city      = intent.get("city", "")
+    area      = intent.get("area", "")
+    budget    = intent.get("budget_total", 0)
+    party     = intent.get("party_size", 2)
+    scenarios = intent.get("scenarios", [])
+
+    if lang_key == "en":
+        city = i18n.translate_field("city", city, lang)
+        area = i18n.translate_field("area", area, lang)
+    elif lang_key == "zh-CN":
+        city = i18n.to_simplified(city)
+        area = i18n.to_simplified(area)
+    else:  # zh-TW: ensure Traditional even if intent came in Simplified
+        city = i18n.to_traditional(city)
+        area = i18n.to_traditional(area)
+
+    names = [p.get("name", "") for p in route]
+    if lang_key == "zh-CN":
+        names = [i18n.to_simplified(n) for n in names]
+    route_stops = " → ".join(names)
+
+    total_mins  = sum(p.get("stay_minutes", 60) for p in route)
+    total_hours = round(total_mins / 60, 1)
+    dining_cost = sum(
+        (p.get("group_buy") or {}).get("current_price", 0) or p.get("avg_price_per_person", 0)
+        for p in route if p.get("category") in _DINING_CATS
+    )
+    total_cost = int(dining_cost)
+    per_person = int(dining_cost / max(party, 1))
+
+    if scenarios:
+        sc_labels = [sc_map.get(s, s) for s in scenarios]
+        sep = " | " if lang_key == "en" else "｜"
+        if lang_key == "en":
+            scenarios_line = f"👥 Great for: {sep.join(sc_labels)}\n"
+        else:
+            tag = "適合" if lang_key == "zh-TW" else "适合"
+            scenarios_line = f"👥 {tag}：{sep.join(sc_labels)}\n"
+    else:
+        scenarios_line = ""
+
+    if weather:
+        wd   = weather.get("weather", "")
+        temp = int(weather.get("temperature", 0))
+        cond = weather.get("condition", "")
+        if lang_key == "en":
+            weather_line = f"🌤 Weather: {wd} {temp}°C"
+            if cond in ("rain", "storm"):
+                weather_line += " — Indoor route, bring an umbrella ☂️"
+            weather_line += "\n"
+        else:
+            label = "天氣" if lang_key == "zh-TW" else "天气"
+            weather_line = f"🌤 {label}：{wd} {temp}°C"
+            if cond in ("rain", "storm"):
+                tip = "，已安排室內路線，記得帶傘☂️" if lang_key == "zh-TW" else "，已安排室内路线，记得带伞☂️"
+                weather_line += tip
+            weather_line += "\n"
+    else:
+        weather_line = ""
+
+    deal_pois = [p for p in route if p.get("has_group_buy") and p.get("group_buy")]
+    if deal_pois:
+        p0 = deal_pois[0]
+        gb = p0["group_buy"]
+        nm = p0.get("name", "")
+        if lang_key == "zh-CN":
+            nm = i18n.to_simplified(nm)
+        if lang_key == "en":
+            deal_line = f"🎟 Deal: {nm} — HKD {gb.get('current_price',0)} (was {gb.get('original_price',0)})\n"
+        else:
+            unit = "元"
+            deal_line = f"🎟 團購：{nm} {gb.get('current_price',0)}{unit}（原{gb.get('original_price',0)}{unit}）\n" if lang_key == "zh-TW" else f"🎟 团购：{nm} {gb.get('current_price',0)}{unit}（原{gb.get('original_price',0)}{unit}）\n"
+    else:
+        deal_line = ""
+
+    high_q = [p for p in route if p.get("queue_risk") in ("高", "High") or "排隊較高" in (p.get("risk_tags") or [])]
+    if high_q:
+        if lang_key == "en":
+            risk_line = f"⚠️ Heads up: {', '.join(p.get('name','') for p in high_q)} can get busy\n"
+        else:
+            hq = "、".join(p.get("name", "") for p in high_q)
+            if lang_key == "zh-CN":
+                hq = i18n.to_simplified(hq)
+            tip = "高峰期排隊較多，建議提早到" if lang_key == "zh-TW" else "高峰期排队较多，建议提早到"
+            risk_line = f"⚠️ 避坑：{hq} {tip}\n"
+    else:
+        risk_line = ""
+
+    ht_city = i18n.to_traditional(intent.get("city","")) if lang_key == "zh-TW" else (i18n.to_simplified(intent.get("city","")) if lang_key == "zh-CN" else city.replace(" ", ""))
+    ht_area = i18n.to_traditional(intent.get("area","")) if lang_key == "zh-TW" else (i18n.to_simplified(intent.get("area","")) if lang_key == "zh-CN" else area.replace(" ", ""))
+    if lang_key == "en":
+        hashtags = f"#{ht_city.replace(' ','')} #{ht_area.replace(' ','')} #TravelGuide #LocalLife #FoodTrail"
+    else:
+        hashtags = f"#{ht_city}{ht_area} #路線推薦 #本地生活 #美食打卡" if lang_key == "zh-TW" else f"#{ht_city}{ht_area} #路线推荐 #本地生活 #美食打卡"
+
+    return tpl.format(
+        city=city, area=area, party=party, budget=budget,
+        route_stops=route_stops, total_hours=total_hours,
+        total_cost=total_cost, per_person=per_person,
+        scenarios_line=scenarios_line, weather_line=weather_line,
+        deal_line=deal_line, risk_line=risk_line, hashtags=hashtags,
+    ).strip()
+
 
 def _build_summary(route: list, lang: str = "zh-TW") -> str:
     total_mins = sum(r.get("stay_minutes", 60) for r in route)
@@ -221,10 +387,14 @@ class OutputNode(BaseNode):
                 poi["transport_polyline"] = None
 
         map_url = _build_map_url(route, polylines)
-        fulfillment = _build_fulfillment(route, state.get("intent", {}), lang)
+        intent  = state.get("intent", {})
+        weather = state.get("weather", {})
+        fulfillment = _build_fulfillment(route, intent, lang)
         summary = _build_summary(route, lang)
         if fulfillment.get("unmatched"):
             summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
+
+        xhs_post = _build_xiaohongshu(route, intent, weather, lang)
 
         updates = list(state.get("stream_updates", []))
         updates.append(i18n.step("output_done", lang))
@@ -241,5 +411,6 @@ class OutputNode(BaseNode):
             "map_url": map_url,
             "summary": summary,
             "fulfillment_notes": fulfillment,
+            "xiaohongshu_post": xhs_post,
             "stream_updates": updates,
         }
