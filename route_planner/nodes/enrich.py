@@ -84,14 +84,26 @@ def _compute_tags(poi: dict, scenarios: list, weather: dict) -> tuple[list[str],
     return tags, risk_tags
 
 
-def _group_buy(poi: dict) -> dict | None:
+def _group_buy(poi: dict, lang: str = "zh-TW") -> dict | None:
     if not poi.get("has_group_buy"):
         return None
     orig = poi.get("group_buy_original_price", 0)
     curr = poi.get("group_buy_current_price", 0)
-    discount = f"{curr / orig * 10:.1f}折" if orig > 0 else ""
+    lk = i18n.normalize(lang)
+    if orig > 0:
+        if lk == "en":
+            pct = round((1 - curr / orig) * 100)
+            discount = f"{pct}% off"
+        else:
+            discount = f"{curr / orig * 10:.1f}折"
+    else:
+        discount = ""
+    title = poi.get("group_buy_title", "")
+    if lk == "zh-CN":
+        title = i18n.to_simplified(title)
+    # en: keep original merchant name (proper noun, not auto-translatable)
     return {
-        "title": poi.get("group_buy_title", ""),
+        "title": title,
         "original_price": orig,
         "current_price": curr,
         "discount": discount,
@@ -172,10 +184,15 @@ class EnrichNode(BaseNode):
                 "name_en": name_en,
                 "category": tf("category", poi["category"]),
                 "sub_category": tf("sub_category", poi.get("sub_category", "")),
-                "address": poi["address"],
+                # address: en→prefer address_en; zh-CN→simplified; zh-TW→as-is
+                "address": (
+                    (poi.get("address_en") or poi["address"]) if lang_key_local == "en"
+                    else i18n.to_simplified(poi["address"]) if lang_key_local == "zh-CN"
+                    else poi["address"]
+                ),
                 "address_en": poi.get("address_en", ""),
-                "city": poi.get("city", ""),
-                "area": poi.get("area", ""),
+                "city": tf("city", poi.get("city", "")),
+                "area": tf("area", poi.get("area", "")),
                 "lat": poi["lat"],
                 "lng": poi["lng"],
                 "rating": poi["rating"],
@@ -189,7 +206,7 @@ class EnrichNode(BaseNode):
                 "queue_risk": tf("queue_risk", poi.get("queue_risk", "低")),
                 "queue_risk_tip": i18n.queue_tip(poi, lang),
                 "has_group_buy": poi.get("has_group_buy", False),
-                "group_buy": _group_buy(poi),
+                "group_buy": _group_buy(poi, lang),
                 "stay_minutes": item.get("stay_minutes", 60),
                 "trend_tag": tf("trend_tag", _trend_tag(poi)),
                 "business_hours": poi.get("business_hours", ""),
@@ -204,7 +221,7 @@ class EnrichNode(BaseNode):
                 "queue_signal_level": poi.get("queue_signal_level", ""),
                 "local_authenticity_level": poi.get("local_authenticity_level", ""),
                 "photo_hotness_level": poi.get("photo_hotness_level", ""),
-                "scenario_tags": poi.get("scenario_tags", ""),
+                "scenario_tags": i18n.translate_scenario_tags(poi.get("scenario_tags"), lang),
                 "tags": pos_tags,
                 "risk_tags": risk_tags,
             })

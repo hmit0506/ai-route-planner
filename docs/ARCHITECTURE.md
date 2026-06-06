@@ -341,11 +341,27 @@ class RouteState(TypedDict):
 
 多轮对话时，已丰富的 locked POI 直接透传，不重复查找。
 
-EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en` 和 `pref_matched` 字段：
-- `city` / `area`：供 RefineNode 提取地理上下文
-- `name`：语言感知显示名——en 模式优先 `name_en`（英文名），zh-CN 模式对繁体名调用 `to_simplified()`，zh-TW 保持原始繁体；`name_en` 为空时所有模式均回退原始繁体名（专有名词）
-- `name_en` / `address_en`：双语字段，始终保留原始值，前端可自行选用
+EnrichNode 对所有文字字段做语言本地化，前端直接展示无需再转换：
+
+| 字段 | zh-TW | zh-CN | en |
+|---|---|---|---|
+| `name` | 繁体原始值 | `to_simplified(name)` | `name_en`（空时回退繁体） |
+| `category` | 餐飲/文化/… | 餐饮/文化/… | Dining/Culture/… |
+| `sub_category` | 日本料理/歷史建築/… | `to_simplified` | Japanese/Historic Site/… |
+| `address` | 繁体原始 | `to_simplified` | `address_en`（空时回退繁体） |
+| `city` / `area` | 繁体原始 | `to_simplified` | Hong Kong / Central / … |
+| `queue_risk` | 高/中/低 | 高/中/低 | High/Medium/Low |
+| `queue_risk_tip` | 繁体 | 简体 | English |
+| `trend_tag` | 繁体+销量 | 简体+销量 | English+sold count |
+| `group_buy.discount` | 8.0折 | 8.0折 | 20% off |
+| `group_buy.title` | 繁体商家名 | `to_simplified` | 保留原文（专有名词） |
+| `tags` / `risk_tags` | 繁体标签 | 简体标签 | English tags |
+| `scenario_tags` | 情侶約會;朋友聚餐 | 情侣约会;朋友聚餐 | Couples;Friends |
+| `transport_to_next` | 步行約N分鐘 | 步行约N分钟 | Walk ~N min |
+
+- `name_en` / `address_en`：双语字段，始终保留英文原始值，前端可独立使用
 - `pref_matched`：True = 该 POI 的 sub_category 匹配用户的 food_pref/culture_pref；False = 最优近似替代；供 OutputNode 生成履约报告
+- 11 个评论信号字段（`risk_mention_rate` 等）：香港餐厅有值，景点/文化类 POI 为 null（无 OpenRice 数据）
 
 ---
 
@@ -479,6 +495,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `translate_field(field, value, lang)` | 字段级翻译：category / sub_category / trend_tag / queue_risk / city / area；trend_tag 支持自定义多标签分解翻译 |
 | `translate_tag(tag, lang)` | 单个 POI 标签翻译（繁体规范形 → zh-CN 简体 / en 英文） |
 | `translate_tags(tags, lang)` | 批量翻译标签列表 |
+| `translate_scenario_tags(raw, lang)` | 翻译分号分隔的 scenario_tags 字符串（"情侶約會;朋友聚餐" → en "Couples;Friends"） |
 | `to_traditional(text)` | 简→繁转换，基于 OpenCC（`s2t` 模式，覆盖所有汉字） |
 | `to_simplified(text)` | 繁→简转换，基于 OpenCC（`t2s` 模式），用于 zh-CN 模式字段值展示 |
 

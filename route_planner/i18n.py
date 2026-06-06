@@ -204,6 +204,16 @@ _SUB_CATEGORY_EN: dict[str, str] = {
     # Casual
     "咖啡店": "Café", "甜品": "Dessert", "麵包店": "Bakery",
     "快餐": "Fast Food", "酒吧": "Bar",
+    # Missing restaurant sub-categories
+    "雲南菜": "Yunnan Cuisine", "山東菜": "Shandong Cuisine",
+    "福建菜": "Fujian Cuisine", "澳大利亞菜": "Australian Cuisine",
+    "茶座": "Teahouse",
+    # Missing outdoor / facility sub-categories
+    "共融遊樂設施": "Inclusive Playground", "單車徑/場": "Cycling Track",
+    "園景花園": "Landscaped Garden", "海滨共享空间": "Waterfront Space",
+    "燒烤場": "Barbecue Area", "特色水景": "Water Feature",
+    "觀景台": "Observation Deck", "長者健體園地": "Fitness Area",
+    "香港湿地公园": "Hong Kong Wetland Park",
     # Cultural / entertainment (for culture_pref display in English mode)
     "文化": "Culture", "文化类": "Culture",  # bare category words used in culture_pref
     "博物館": "Museum", "博物馆": "Museum",
@@ -381,6 +391,35 @@ def translate_tag(tag: str, lang: str = "zh-TW") -> str:
 
 def translate_tags(tags: list[str], lang: str = "zh-TW") -> list[str]:
     return [translate_tag(t, lang) for t in tags]
+
+
+# scenario_tags is stored as "情侶約會;朋友聚餐" (Traditional Chinese semicolon-separated)
+_SCENARIO_CN: dict[str, str] = {
+    "情侶約會": "情侣约会", "朋友聚餐": "朋友聚餐",
+    "家庭親子": "家庭亲子", "慶生": "庆生",
+    "商務接待": "商务接待", "一人食": "一人食", "打卡拍照": "打卡拍照",
+}
+_SCENARIO_EN: dict[str, str] = {
+    "情侶約會": "Couples",    "朋友聚餐": "Friends",
+    "家庭親子": "Families",   "慶生": "Birthdays",
+    "商務接待": "Business",   "一人食": "Solo Dining", "打卡拍照": "Photo Lovers",
+}
+
+
+def translate_scenario_tags(raw: str | None, lang: str = "zh-TW") -> str:
+    """Translate semicolon-separated scenario_tags string to target language."""
+    if not raw:
+        return raw or ""
+    key = normalize(lang)
+    parts = [t.strip() for t in raw.split(";") if t.strip()]
+    if key == "zh-CN":
+        translated = [_SCENARIO_CN.get(p, to_simplified(p)) for p in parts]
+    elif key == "en":
+        translated = [_SCENARIO_EN.get(p, p) for p in parts]
+    else:
+        return raw  # zh-TW: already Traditional
+    return ";".join(translated)
+
 
 _QUEUE_RISK_EN: dict[str, str] = {"高": "High", "中": "Medium", "低": "Low"}
 

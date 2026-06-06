@@ -138,51 +138,91 @@ async function generateRoute(userInput, language) {
 
 ### 4.2 route 每个 POI 的字段
 
+> 所有文字字段（name / category / sub_category / address / city / area / queue_risk / queue_risk_tip / trend_tag / transport_to_next / tags / risk_tags / scenario_tags / group_buy.discount）均已按 `language` 参数翻译，前端**直接展示**即可，无需再做转换。
+
 ```json
 {
   "order": 1,
-  "name": "大館",              // 显示名：en→英文名，zh-CN→简体，zh-TW→繁体
-  "name_en": "Tai Kwun",      // 英文名原始值（name_en 为空时 name 保留中文）
-  "category": "文化",          // 餐飲/文化/娛樂/自然（已按 language 翻译）
-  "sub_category": "歷史建築",  // 细分类别（已按 language 翻译）
-  "address": "中環荷里活道10號",
-  "address_en": null,
-  "city": "香港",
-  "area": "中環",
-  "lat": 22.278519,
-  "lng": 114.159074,           // ← 地图打点用
+  "poi_id": "hk_660400",
 
-  "rating": 4.7,
-  "taste_rating": 0.0,         // 餐饮类有值，文化/娱乐类为 0
-  "decor_rating": 4.5,
+  // ── 名称 ──────────────────────────────────────────────────────────────
+  "name": "Tai Kwun",          // 显示名，已按语言处理：
+                               //   en  → name_en（如 "Tai Kwun"），name_en 空时保留中文
+                               //   zh-CN → to_simplified（"大馆"）
+                               //   zh-TW → 繁体原始值（"大館"）
+  "name_en": "Tai Kwun",      // 英文名原始值，前端可独立使用
+
+  // ── 分类 ──────────────────────────────────────────────────────────────
+  "category": "Culture",       // 已翻译：zh-TW=文化/餐飲/娛樂/自然  en=Culture/Dining/...
+  "sub_category": "Historic Site", // 已翻译：zh-TW=歷史建築  en=Historic Site
+
+  // ── 位置 ──────────────────────────────────────────────────────────────
+  "address": "10 Hollywood Road, Central",  // 已翻译：en→address_en（若有），zh-CN→简体
+  "address_en": "10 Hollywood Road, Central", // 英文地址原始值
+  "city": "Hong Kong",         // 已翻译：en=Hong Kong  zh-TW=香港  zh-CN=香港
+  "area": "Central",           // 已翻译：en=Central    zh-TW=中環  zh-CN=中环
+  "lat": 22.278519,
+  "lng": 114.159074,           // ← 地图打点、导航用
+
+  // ── 评分 ──────────────────────────────────────────────────────────────
+  "rating": 4.7,               // 综合评分
+  "taste_rating": 0.0,         // 口味（餐饮类有值，文化/自然类为 0）
+  "decor_rating": 4.5,         // 环境（文化/娱乐类有值）
   "service_rating": 5.0,
   "hygiene_rating": 5.0,
-  "avg_price_per_person": 30.0,
-  "half_year_sales": 2707,
-  "recommend_count": 637,
+  "avg_price_per_person": 30.0, // 人均消费（港币）
+  "half_year_sales": 2707,      // 半年销量（相对热度参考值）
+  "recommend_count": 637,       // 评论总数（口碑参考值）
 
-  "queue_risk": "高",                              // 高/中/低（已按 language 翻译）
-  "queue_risk_tip": "晚高峰等位約30分鐘，建議提前到店",  // 可直接展示
+  // ── 排队 ──────────────────────────────────────────────────────────────
+  "queue_risk": "High",         // 已翻译：en=High/Medium/Low  zh=高/中/低
+  "queue_risk_tip": "Peak hours wait ~30 min, arrive early",  // 可直接展示
 
-  "has_group_buy": 0,
-  "group_buy": null,           // 有团购时: {title, original_price, current_price, discount}
-  "trend_tag": "文化深度遊｜高口碑（已售2707单）",
-  "business_hours": "08:00-23:00",
+  // ── 团购 ──────────────────────────────────────────────────────────────
+  "has_group_buy": 1,           // 1=有团购  0=无
+  "group_buy": {
+    "title": "精選和食雙人宴",   // 商家自定义名称，zh-CN 会转简体，en 保留原文（专有名词）
+    "original_price": 500.0,
+    "current_price": 400.0,
+    "discount": "20% off"       // 已翻译：en="20% off"  zh="8.0折"
+  },
+  // group_buy 为 null 时表示无团购
 
+  // ── 趋势 / 营业 ───────────────────────────────────────────────────────
+  "trend_tag": "Classic (400+ sold)",  // 已翻译：en=English  zh=中文含销量
+  "business_hours": "11:30-14:30;18:00-22:30",  // 原始格式，多时段用 ; 分隔
+
+  // ── 行程 ──────────────────────────────────────────────────────────────
   "stay_minutes": 90,
-  "transport_to_next": "步行約5分鐘",    // 最后一站为空字符串
-  "transport_polyline": "114.15,22.27;...", // 步行路径坐标，JS 地图画蓝线用；最后一站为 null
-  "navigation_url": "https://uri.amap.com/navigation?...", // 手机点击跳高德导航 App
+  "transport_to_next": "Walk ~5 min",   // 已翻译；最后一站为空字符串 ""
+  "transport_polyline": "114.15,22.27;114.16,22.28;...",  // 步行坐标串，JS地图画蓝线；最后一站为 null
+  "navigation_url": "https://uri.amap.com/navigation?...",  // 手机点击跳高德导航
 
-  "tags": ["高口碑", "性價比高"],         // 正向标签（已按 language 翻译，见下表）
-  "risk_tags": [],                       // 风险标签（已按 language 翻译，见下表）
-  "pref_matched": true                   // 该 POI 是否匹配用户偏好
+  // ── 标签 ──────────────────────────────────────────────────────────────
+  "tags": ["Great Deal", "Local Fav"],   // 正向标签，已按 language 翻译（见下表）
+  "risk_tags": ["Long Queue"],           // 风险标签，已按 language 翻译
+  "scenario_tags": "Friends;Birthdays",  // 场合标签，已翻译；en=英文  zh-CN=简体  zh-TW=繁体；null 表示无
+
+  // ── 偏好匹配 ───────────────────────────────────────────────────────────
+  "pref_matched": true,   // true=此 POI 的 sub_category 匹配用户偏好；false=近似替代
+
+  // ── 评论信号（来自 OpenRice 5年真实评论，餐厅类有值，景点/文化类为 null）──
+  "risk_mention_rate": 0.12,          // 负面体验占比（0~1，均值0.6）；越低越安全；null=无数据
+  "queue_mention_rate": 0.33,         // 排队抱怨占比（0~1，均值0.3）；>0.5=排队严重
+  "photo_mention_rate": 0.0,          // 打卡拍照占比（0~1）；高=适合拍照
+  "local_mention_rate": 1.0,          // 地道感占比（0~1）；高=本地人爱去
+  "accessibility_mention_rate": 0.0,  // 无障碍/便利性占比（0~1）；高=适合亲子/老人
+  "year_max": 2025,                   // 最近评论年份；<=2022 可能已关或口碑下滑；null=无数据
+  "risk_signal_level": "Low",         // 相对等级：Low/Medium/High（辅助 risk_mention_rate）
+  "queue_signal_level": "High",
+  "local_authenticity_level": "High",
+  "photo_hotness_level": "Low"
 }
 ```
 
 **tags / risk_tags 翻译对照**：
 
-| zh-TW（数据库） | zh-CN | en |
+| zh-TW（数据库存储值） | zh-CN | en |
 |---|---|---|
 | 高口碑 | 高口碑 | Highly Rated |
 | 團購划算 | 团购划算 | Great Deal |
@@ -197,6 +237,18 @@ async function generateRoute(userInput, language) {
 | 踩雷風險 | 踩雷风险 | Risky |
 | 排隊較高 | 排队较高 | Long Queue |
 | 網紅打卡 | 网红打卡 | Instagrammable |
+
+**scenario_tags 翻译对照**（分号分隔的多值字符串）：
+
+| zh-TW | zh-CN | en |
+|---|---|---|
+| 情侶約會 | 情侣约会 | Couples |
+| 朋友聚餐 | 朋友聚餐 | Friends |
+| 家庭親子 | 家庭亲子 | Families |
+| 慶生 | 庆生 | Birthdays |
+| 商務接待 | 商务接待 | Business |
+| 一人食 | 一人食 | Solo Dining |
+| 打卡拍照 | 打卡拍照 | Photo Lovers |
 
 ### 4.3 weather 字段
 
@@ -425,8 +477,8 @@ function renderRouteMap(route) {
     // 团购信息
     var gbHtml = '';
     if (poi.has_group_buy && poi.group_buy) {
-      gbHtml = '<div style="color:#e55;font-size:12px;">🎟 团购 ¥'
-        + poi.group_buy.current_price + '（' + poi.group_buy.discount + '）</div>';
+      gbHtml = '<div style="color:#e55;font-size:12px;">🎟 '
+        + poi.group_buy.current_price + ' (' + poi.group_buy.discount + ')</div>';
     }
 
     // 标签

@@ -361,6 +361,8 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 三语 20 案例深度测试 + 6 项 bug 修复：① zh-TW 小红书 body 含简体（city/area 未转繁体）；② dining_count=1 全餐饮候选时路线空白（_validate 条件放宽 + _force_dining_count 回退保护）；③ tags/risk_tags 固定繁体（新增 translate_tag/translate_tags 三语翻译）；④ trend_tag 自定义标签未翻译（拆解多标签逐词翻译）；⑤ culture_pref 文化/藝術等词未翻译（补充 _SUB_CATEGORY_EN）；⑥ 测试检测字符串设计缺陷（排除简繁同码字符）
 - [x] 英文模式 POI 名称显示修复：EnrichNode 在 en 模式优先使用 name_en，zh-CN 模式对 name 调用 to_simplified()，zh-TW 保持原始繁体；run_pipeline.py 新增小红书贴文区块 + POI 标签显示
 - [x] 三语语言纯洁性系统修复（共 3 处根本问题）：① zh-CN 路线 POI name 仍为繁体（EnrichNode 加 to_simplified）；② zh-CN 小红书 LLM 生成港式内容时忽略简体指令（生成后强制 OpenCC 转换）；③ en 小红书输出中文（CJK 比例检测 + 重试机制 + format prompt 细化为编号结构）；原则：LLM 自由文本不可信任语言指令，必须在输出端 OpenCC 兜底
+- [x] 全字段三语完整化（EnrichNode 最终修复轮）：address/city/area 按 language 翻译（en 用 address_en + _LOCATION_EN，zh-CN 转简体）；group_buy.discount en 改为"20% off"格式，title zh-CN 转简体；scenario_tags 新增 translate_scenario_tags 三语翻译；_SUB_CATEGORY_EN 补全 14 个缺失词条（雲南菜→Yunnan Cuisine 等）；summary 末尾 en 模式改用英文括号 (...) / 分号
+- [x] 前端接入指南全面更新（docs/frontend_guide_for_C.md）：4.2 节重写，涵盖所有 44 个 POI 字段（含 11 个评论信号字段，语言感知说明，group_buy 完整结构，scenario_tags 翻译对照表）；JS 地图代码修正中文括号；三个真实运行示例
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 录制 Demo + 提交
 

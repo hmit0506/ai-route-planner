@@ -536,7 +536,10 @@ class OutputNode(BaseNode):
         fulfillment = _build_fulfillment(route, intent_snap, lang)
         summary     = _build_summary(route, lang)
         if fulfillment.get("unmatched"):
-            summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
+            if i18n.normalize(lang) == "en":
+                summary += " (" + "; ".join(fulfillment["unmatched"]) + ")"
+            else:
+                summary += "（" + "；".join(fulfillment["unmatched"]) + "）"
 
         updates = list(state.get("stream_updates", []))
         updates.append(i18n.step("output_done", lang))
