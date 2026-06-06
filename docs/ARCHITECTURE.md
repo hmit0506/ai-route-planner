@@ -105,7 +105,7 @@ class RouteState(TypedDict):
     stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
     user_memory: dict             # app 层从 user_id 加载，空 dict 表示匿名；路线完成后异步更新
     weather: dict                 # WeatherNode 写入：{condition, temperature, prefer_indoor, is_rainy, ...}
-    xiaohongshu_post: str         # OutputNode 写入：小红书式攻略文本（三语模板）
+    xiaohongshu_post: str         # OutputNode 写入：LLM 生成的小红书式攻略文本（三语，出错时 template 兜底）
 ```
 
 每个节点只写自己关心的字段，其余透传（`{**state, "key": new_value}`）。
@@ -343,7 +343,8 @@ class RouteState(TypedDict):
 
 EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en` 和 `pref_matched` 字段：
 - `city` / `area`：供 RefineNode 提取地理上下文
-- `name_en` / `address_en`：双语展示，前端英文模式直接使用
+- `name`：语言感知显示名——en 模式优先 `name_en`（英文名），zh-CN 模式对繁体名调用 `to_simplified()`，zh-TW 保持原始繁体；`name_en` 为空时所有模式均回退原始繁体名（专有名词）
+- `name_en` / `address_en`：双语字段，始终保留原始值，前端可自行选用
 - `pref_matched`：True = 该 POI 的 sub_category 匹配用户的 food_pref/culture_pref；False = 最优近似替代；供 OutputNode 生成履约报告
 
 ---
@@ -362,11 +363,12 @@ EnrichNode 输出的每个 POI 包含 `city`、`area`、`name_en`、`address_en`
 
 **步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时，而非原来的 N×3s。
 
-**小红书式攻略导出（`_build_xiaohongshu`）**：不额外调用 LLM，使用三语模板生成 `xiaohongshu_post` 字段：
-- 结构：📍路线标题 → 🗺路线 → ⏱时长 → 💰预算 → 👥场景 → 🌤天气提醒 → 🎟团购亮点 → ⚠️避坑 → #话题标签
-- city/area 按语言转换（zh-TW→繁体；zh-CN→简体；en→英文地名）
-- POI 名字在 route 行保留中文（专有名词天然是中文），模板结构行无 CJK
-- 天气感知：雨天/暴雨自动追加"已安排室内路线，记得带伞☂️"
+**小红书式攻略导出（`_llm_xiaohongshu`）**：调用 LLM 生成 200-350 字的真实博主风格贴文，与步行路径 API 并行执行（ThreadPoolExecutor）零额外延迟；`_build_xiaohongshu` 模板作为异常兜底。
+- **三语独立 prompt 策略**：每种语言有各自的 `lang_inst`（语言强制要求）+ `struct_hint`（精细格式要求）+ `user_msg`（语言匹配的数据标签）
+- **en 格式要求**：① 含数字的吸睛标题 → ② 开场 hook → ③ 每站编号（1️⃣2️⃣3️⃣）+ 具体菜品 + 个人感受 + 价格/团购 → ④ 💡Tips（预算/时间/⚠️警告）→ ⑤ 5-8 个英文 hashtag
+- **语言纯洁性保障**（LLM 自由文本不可信语言指令，必须在输出端强制转换）：
+  - zh-CN：OpenCC `to_simplified()` 无条件后处理（港式内容 LLM 必然输出繁体）
+  - en：计算输出 CJK 字符比例；>15% 则发起重试 prompt（"rewrite entirely in English"）；重试后仍 >10% 则回退 template
 
 **静态地图 URL 构造**：高德 REST API，含标记点（A/B/C...）+ 步行路径蓝线（每段限 40 个坐标点，防 URL 超长）。步行 API 失败时降级为仅标记点。
 

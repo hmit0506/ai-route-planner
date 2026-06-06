@@ -153,10 +153,18 @@ class EnrichNode(BaseNode):
             pos_tags_raw, risk_tags_raw = _compute_tags(poi, scenarios, weather)
             pos_tags  = i18n.translate_tags(pos_tags_raw,  lang)
             risk_tags = i18n.translate_tags(risk_tags_raw, lang)
-            # English mode: prefer name_en; fall back to Chinese name if name_en absent
+            # Language-aware name selection:
+            #   en     → name_en if available, else Chinese name
+            #   zh-CN  → to_simplified(name)  (DB stores Traditional)
+            #   zh-TW  → name as-is (already Traditional)
             name_en = poi.get("name_en") or ""
-            display_name = (name_en if name_en and i18n.normalize(lang) == "en"
-                            else poi["name"])
+            lang_key_local = i18n.normalize(lang)
+            if lang_key_local == "en":
+                display_name = name_en if name_en else poi["name"]
+            elif lang_key_local == "zh-CN":
+                display_name = i18n.to_simplified(poi["name"])
+            else:
+                display_name = poi["name"]
             enriched.append({
                 "poi_id": poi_id,
                 "order": item.get("order", len(enriched) + 1),

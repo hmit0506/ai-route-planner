@@ -357,8 +357,10 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 天气感知路线（WeatherNode）：高德天气API，5类天气条件（晴/雨/高温/寒冷/恶劣），雨天/高温自动注入 prefer_indoor，RouteNode 天气感知路线策略，SSE 三语天气提示
 - [x] 实时 POI 搜索增强：大陆城市高德API优先（pref关键词精准搜索）+ 香港SQLite优先；_is_hk_city 城市识别；多关键词并发搜索去重合并
 - [x] POI 标签体系：10个正向标签 + 3个风险标签，基于评论信号字段计算，天气感知动态追加"雨天友好"，三语全覆盖（translate_tag/translate_tags）
-- [x] 小红书式攻略导出（xiaohongshu_post）：三语模板，含路线/时长/预算/场景/天气/团购/避坑/话题标签，OutputNode 无额外LLM调用
+- [x] 小红书式攻略导出（xiaohongshu_post）：LLM 生成（200-350字，emoji 丰富，第一人称博主语气，编号站点+具体菜品+实用 tips+话题标签）；与步行路径并行生成零额外延迟；出错时 template 兜底；三语各有独立格式要求
 - [x] 三语 20 案例深度测试 + 6 项 bug 修复：① zh-TW 小红书 body 含简体（city/area 未转繁体）；② dining_count=1 全餐饮候选时路线空白（_validate 条件放宽 + _force_dining_count 回退保护）；③ tags/risk_tags 固定繁体（新增 translate_tag/translate_tags 三语翻译）；④ trend_tag 自定义标签未翻译（拆解多标签逐词翻译）；⑤ culture_pref 文化/藝術等词未翻译（补充 _SUB_CATEGORY_EN）；⑥ 测试检测字符串设计缺陷（排除简繁同码字符）
+- [x] 英文模式 POI 名称显示修复：EnrichNode 在 en 模式优先使用 name_en，zh-CN 模式对 name 调用 to_simplified()，zh-TW 保持原始繁体；run_pipeline.py 新增小红书贴文区块 + POI 标签显示
+- [x] 三语语言纯洁性系统修复（共 3 处根本问题）：① zh-CN 路线 POI name 仍为繁体（EnrichNode 加 to_simplified）；② zh-CN 小红书 LLM 生成港式内容时忽略简体指令（生成后强制 OpenCC 转换）；③ en 小红书输出中文（CJK 比例检测 + 重试机制 + format prompt 细化为编号结构）；原则：LLM 自由文本不可信任语言指令，必须在输出端 OpenCC 兜底
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 录制 Demo + 提交
 
