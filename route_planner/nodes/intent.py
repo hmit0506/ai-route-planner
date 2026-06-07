@@ -26,8 +26,17 @@ def _parse_cot_response(raw: str) -> Tuple[str, dict]:
     return reasoning, intent
 
 
-def _validate_and_fix(intent: dict) -> dict:
+def _validate_and_fix(intent: dict, user_input: str = "") -> dict:
     """Auto-fix common IntentAgent errors."""
+    # This system serves Hong Kong only — always normalise city to 香港
+    city = (intent.get("city") or "").strip()
+    _hk_aliases = {"香港", "hong kong", "hk", "hongkong"}
+    if city.lower() not in _hk_aliases:
+        intent["city"] = "香港"
+        # Clear area when city was non-HK (area name won't match HK database)
+        if city and city.lower() not in _hk_aliases:
+            intent["area"] = ""
+
     # Fix duration_hours if missing or zero
     if not intent.get("duration_hours"):
         try:
@@ -256,7 +265,7 @@ class IntentNode(BaseNode):
         reasoning, intent = _parse_cot_response(raw)
 
         # Code-level validation and auto-fix
-        intent = _validate_and_fix(intent)
+        intent = _validate_and_fix(intent, user_input=user_input)
 
         updates = list(state.get("stream_updates", []))
         if reasoning:
