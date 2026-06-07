@@ -126,6 +126,31 @@ def _intent_cache_key(intent: dict, language: str = "zh-TW") -> str:
     return f"{language}|{city}|{area}|{budget}|{cats}|d{dining}|h{dur}"
 
 
+async def _graph_stream_async(graph, initial: RouteState) -> AsyncGenerator[dict, None]:
+    """Run a synchronous LangGraph in a thread so the event loop stays free during LLM calls."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def _worker():
+        try:
+            for chunk in graph.stream(initial, stream_mode="values"):
+                loop.call_soon_threadsafe(queue.put_nowait, ("chunk", chunk))
+        except Exception as exc:
+            loop.call_soon_threadsafe(queue.put_nowait, ("error", exc))
+        finally:
+            loop.call_soon_threadsafe(queue.put_nowait, ("done", None))
+
+    loop.run_in_executor(None, _worker)
+
+    while True:
+        kind, data = await queue.get()
+        if kind == "error":
+            raise data
+        if kind == "done":
+            return
+        yield data
+
+
 async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
     # Emit immediately so the client sees a response within ~50ms
     yield _sse("step", {"message": i18n.step("planning_start", req.language)})
@@ -167,11 +192,11 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
     final_state: RouteState | None = None
 
     try:
-        for chunk in _graph.stream(initial, stream_mode="values"):
+        async for chunk in _graph_stream_async(_graph, initial):
             new_steps = chunk.get("stream_updates", [])
             for step in new_steps[len(prev_steps):]:
                 yield _sse("step", {"message": step})
-                await asyncio.sleep(0)  # flush each event before next blocking node
+                await asyncio.sleep(0)
             prev_steps = new_steps
             final_state = chunk
 
@@ -287,11 +312,11 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
     prev_steps: list[str] = []
     final_state: RouteState | None = None
     try:
-        for chunk in _refine_graph.stream(initial, stream_mode="values"):
+        async for chunk in _graph_stream_async(_refine_graph, initial):
             new_steps = chunk.get("stream_updates", [])
             for step in new_steps[len(prev_steps):]:
                 yield _sse("step", {"message": step})
-                await asyncio.sleep(0)  # flush each event before next blocking node
+                await asyncio.sleep(0)
             prev_steps = new_steps
             final_state = chunk
     except Exception as exc:
