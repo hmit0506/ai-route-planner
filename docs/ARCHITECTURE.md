@@ -169,7 +169,7 @@ class RouteState(TypedDict):
 
 **职责**：在 IntentNode 之后，通过高德天气 API 获取用户出行日期/时段的实际天气预报，并将天气信息注入 intent，供 RouteNode 做天气感知路线调整。
 
-**天气 API**：`https://restapi.amap.com/v3/weather/weatherInfo?extensions=all`（未来 4 天预报）。城市名 → adcode 内建映射（香港/上海/北京/广州/深圳等 20 城）。
+**天气 API**：[https://restapi.amap.com/v3/weather/weatherInfo?extensions=all](https://restapi.amap.com/v3/weather/weatherInfo?extensions=all)（未来 4 天预报）。城市名 → adcode 内建映射（香港/上海/北京/广州/深圳等 20 城）。
 
 **日期解析**：将 intent.date 的自然语言描述（"今天"/"明天"/"周末"/"today"/"weekend"）转换为 YYYY-MM-DD，按用户时段选择白天/夜间天气。
 
@@ -691,7 +691,7 @@ event: error   → {"message": "错误信息"}
 
 ### 线上环境（Railway）
 
-**地址**：`https://ai-route-planner-production.up.railway.app`
+**地址**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)
 
 - `git push` 到 main 自动触发重新部署
 - 环境变量在 Railway Variables 面板填写，不进代码

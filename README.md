@@ -3,8 +3,8 @@
 > **把陌生街巷，走成你的主场。**  
 > 美团 Hackathon 第五题「现在就出发：AI本地路线智能规划」
 
-**前端地址**：`https://smart-journey-map.nocode.host`  
-**后端地址**：`https://ai-route-planner-production.up.railway.app`
+**前端地址**：[https://smart-journey-map.nocode.host](https://smart-journey-map.nocode.host)  
+**后端地址**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)
 
 ---
 
@@ -176,11 +176,11 @@ PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "中環一整天，包括
 
 ## 线上部署
 
-**前端地址**：`https://smart-journey-map.nocode.host`  
-**后端地址**：`https://ai-route-planner-production.up.railway.app`
+**前端地址**：[https://smart-journey-map.nocode.host](https://smart-journey-map.nocode.host)  
+**后端地址**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)
 
-- **前端**：`https://smart-journey-map.nocode.host`（NoCode 平台托管）
-- **后端**：`https://ai-route-planner-production.up.railway.app`（Railway，`git push` 自动重新部署）
+- **前端**：[https://smart-journey-map.nocode.host](https://smart-journey-map.nocode.host)（NoCode 平台托管）
+- **后端**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)（Railway，`git push` 自动重新部署）
 - API Key 在 Railway Variables 面板填写，不进代码
 - 启动时自动重建数据库（CSV 有更新时）
 

@@ -1,7 +1,7 @@
 # 前端接入指南
 
-**前端地址**：`https://smart-journey-map.nocode.host`（NoCode 平台，底层 React 18 + Vite + Tailwind CSS + shadcn/ui）  
-**后端地址**：`https://ai-route-planner-production.up.railway.app`（Railway）
+**前端地址**：[https://smart-journey-map.nocode.host](https://smart-journey-map.nocode.host)（NoCode 平台，底层 React 18 + Vite + Tailwind CSS + shadcn/ui）  
+**后端地址**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)（Railway）
 
 ## 一、SSE 读取（JS 代码）
 
