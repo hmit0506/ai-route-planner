@@ -245,8 +245,10 @@ ai-route-planner/
 
 ## 团队分工
 
-| 成员 | 负责内容 |
-|---|---|
-| 成员 A | 多智能体框架、AI Prompt 设计、后端、Railway 部署 |
-| 成员 B | 高德地图接入、香港 POI 数据（poi.csv）、OpenRice 评论信号处理 |
-| 成员 C | NoCode 前端、PPT、Demo 视频（前端接入见[前端接入指南](docs/FRONTEND.md)） |
+**队名：瞬时扬程**
+
+| 成员 | 角色 | 负责内容 | GitHub |
+|---|---|---|---|
+| 孙嘉铄 | 队长 | 高德地图接入、香港 POI 数据（poi.csv）、OpenRice 评论信号处理 | [@JoshuaSUN1112](https://github.com/JoshuaSUN1112) |
+| 施骞 | 后端 | 多智能体框架、AI Prompt 设计、后端、Railway 部署 | [@hmit0506](https://github.com/hmit0506) |
+| 杨润祺 | 前端 | NoCode 前端、PPT、Demo 视频（接入见[前端接入指南](docs/FRONTEND.md)） | [@Yangrunqi666](https://github.com/Yangrunqi666) |
