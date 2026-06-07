@@ -61,8 +61,19 @@ def _validate_and_fix(intent: dict) -> dict:
     if not intent.get("must_include_categories"):
         intent["must_include_categories"] = ["餐饮"]
 
-    # Note: do NOT auto-add "文化" here — database may not have cultural POIs.
-    # LLM should include it in must_include_categories only when user explicitly asks.
+    avoid = intent.get("avoid", [])
+    dining_avoided = any("餐" in a for a in avoid)
+    cats = intent["must_include_categories"]
+
+    # 餐饮 must always be present unless user explicitly avoids food
+    if "餐饮" not in cats and not dining_avoided:
+        intent["must_include_categories"] = ["餐饮"] + cats
+        cats = intent["must_include_categories"]
+
+    # Enforce: trips >= 5h must include at least one activity category (文化 or 娱乐)
+    duration = intent.get("duration_hours", 4)
+    if duration >= 5 and not any(c in ("文化", "娱乐") for c in cats):
+        intent["must_include_categories"] = cats + ["娱乐"]
 
     # Ensure dining_count is a non-negative integer
     try:
