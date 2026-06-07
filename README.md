@@ -158,85 +158,22 @@ PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "中環一整天，包括
 
 - `git push` 到 main 自动触发重新部署
 - API Key 在 Railway Variables 面板填写，不进代码
-- 启动时自动执行 `migrate_to_sqlite.py` 生成 `poi.db`
+- 启动时 `app/main.py` lifespan 自动生成 `poi.db`（CSV 比 DB 新时重建）
 
 ---
 
 ## API 接口
 
-### POST /route/generate
-
-```json
-{
-  "user_input": "旺角附近下午，想吃日本料理，預算400港幣",
-  "language": "zh-TW",
-  "conversation_history": [],
-  "locked_nodes": [],
-  "user_id": "user_abc123"
-}
+```
+POST /route/generate   首次生成路线（SSE 流式）
+POST /route/refine     局部替换（SSE 流式）
+GET  /health           健康检查
 ```
 
-`language` 可选值：`"zh-TW"`（繁体，默认）、`"zh-CN"`（简体）、`"en"`（English）。  
-`user_id` 可选；传入后自动加载/更新用户偏好记忆，不传则匿名无记忆。
-
-### POST /route/refine
-
-```json
-{
-  "user_input": "换一家不排队的餐厅",
-  "conversation_history": [],
-  "locked_nodes": [],
-  "current_route": [/* 上次 result 事件中的 route 数组 */]
-}
-```
-
-### SSE 事件流
-
-```
-event: step    → {"message": "正在为您规划路线，请稍候..."}   ← 请求进入立即发出（< 50ms）
-event: step    → {"message": "💡 ...推理过程..."}
-event: step    → {"message": "已解析需求：..."}
-event: step    → {"message": "找到候选POI：..."}
-event: step    → {"message": "地理聚合完成：..."}
-event: step    → {"message": "路线生成完成，共N个地点"}
-event: step    → {"message": "已补充团购/排队/趋势信息"}
-event: step    → {"message": "路线规划完成，已生成地图链接"}
-event: result  → {完整路线 JSON，xiaohongshu_post 为空}       ← 路线结果先到
-event: step    → {"message": "正在生成小红书攻略贴文..."}
-event: xiaohongshu_update → {"xiaohongshu_post": "..."}       ← LLM 小红书后到
-event: step    → {"message": "小红书攻略贴文已生成"}
-event: done    → {}
-```
-
-> `xiaohongshu_update` 是独立事件类型，前端用 `source.addEventListener('xiaohongshu_update', ...)` 接收并更新小红书区域。
-
-### result 事件 route 字段说明
-
-| 字段 | 说明 |
-|---|---|
-| `transport_polyline` | 步行路径坐标串 `"lng,lat;..."` ，前端 JS 地图绘制蓝线用；最后一个 POI 为 null |
-| `navigation_url` | 高德导航 URI，手机点击跳转导航 App |
-| `map_url` | 后端生成的静态地图图片 URL（标记点 + 步行蓝线） |
-| `queue_risk_tip` | 人性化排队提示，如"晚高峰等位约40分钟，建议17:30前到店" |
-| `group_buy.discount` | 团购折扣率，如"6.8折" |
-| `trend_tag` | 含销量的趋势标签，如"火爆（已售1.2万单）" |
-| `risk_mention_rate` | 负面体验短语占比（0~1，均值0.6）；越低越安全，前端可展示安全评级 |
-| `queue_mention_rate` | 排队抱怨占比（0~1，均值0.3）；>0.5 可展示排队警告 |
-| `photo_mention_rate` | 拍照打卡短语占比（0~1）；高值可展示"打卡热点"标签 |
-| `local_mention_rate` | 地道/本土感短语占比（0~1）；高值可展示"地道老铺"标签 |
-| `year_max` | 最近收到评论的年份（2021-2025）；前端可展示"活跃" / "久未更新"提示 |
-| `scenario_tags` | 场合标签，如 `"情侶約會;朋友聚餐"`；前端可展示场合适配图标 |
-| `tags` | 正向标签列表，如 `["高口碑","團購划算","冷門寶藏"]`；已按 language 翻译（en: `["Highly Rated","Great Deal","Hidden Gem"]`） |
-| `risk_tags` | 风险标签列表，如 `["排隊較高","踩雷風險"]`；已按 language 翻译 |
-
-**顶层字段**（与 route 同级）：
-
-| 字段 | 说明 |
-|---|---|
-| `weather` | WeatherNode 输出：`{"condition":"rain","temperature":22,"prefer_indoor":true,...}` |
-| `xiaohongshu_post` | 小红书式攻略文本，含路线/预算/场景/天气/团购/避坑/话题标签，按 language 输出 |
+详细接口规范、SSE 事件流、完整字段说明及前端接入代码见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 第十三章。
 
 ---
+
 
 ## 项目结构
 
@@ -268,11 +205,8 @@ ai-route-planner/
 │   ├── main.py                # FastAPI 路由 + SSE 流式 + 内存缓存
 │   └── schemas.py             # Pydantic 请求/响应模型
 ├── scripts/
-│   ├── run_pipeline.py        # 完整流水线测试
-│   ├── run_intent.py          # IntentAgent 单测
-│   ├── test_20cases.py        # 三语 20 案例系统测试（A组纯逻辑/B组Intent/C组全流水线）
-│   ├── migrate_to_sqlite.py   # poi.csv → poi.db（setup.sh 自动调用）
-│   └── migrate_hk_to_csv.py  # OpenRice xlsx → poi.csv（本地维护数据用）
+│   ├── run_pipeline.py        # 完整流水线本地测试
+│   └── run_intent.py          # IntentAgent 单独验证
 ├── docs/
 │   ├── ARCHITECTURE.md        # 系统架构详解
 │   └── frontend_guide_for_C.md # 前端接入指南（成员 C 专用）
@@ -290,13 +224,6 @@ ai-route-planner/
 
 数据存储在 `route_planner/data/poi.csv`（18,248 条香港 POI，GitHub 上可直接查看表格）。
 
-**从 OpenRice xlsx 重新生成**（更新原始数据集后）：
-```bash
-PYTHONPATH=. .venv/bin/python3 scripts/migrate_hk_to_csv.py
-git add route_planner/data/poi.csv && git push
-```
-Railway 重新部署时自动重建 `poi.db`。
-
 **直接编辑 poi.csv**（小幅修改）：
 1. 编辑 `poi.csv`（Excel 或任意编辑器）
 2. `git push` → Railway 自动重新部署，`poi.db` 同步更新
@@ -313,67 +240,6 @@ Railway 重新部署时自动重建 `poi.db`。
 
 Railway 部署时在项目 Variables 面板填写，不进代码。
 
----
-
-## 开发进度
-
-- [x] 项目骨架 + IntentAgent + DeepSeek API 调通
-- [x] 完整 LangGraph 流水线（5个节点全部接通，SQLite POI 数据库 100条）
-- [x] FastAPI + SSE 流式输出（/route/generate、/route/refine、/health，内存缓存）
-- [x] RefineAgent 局部替换（RefineNode LLM + RefineSelectNode 纯代码，1次 LLM 调用）
-- [x] 步行路径蓝线（高德 Walking Directions API）+ 一键导航链接 + 动态地图坐标字段
-- [x] Railway 部署上线，自动 HTTPS，push 即部署
-- [x] GeoClusterNode：地理聚合 + 时间感知站点数（去掉硬性类别配比，交给 LLM 决策）
-- [x] IntentNode：CoT 推理可见 + 代码层自动校验 + meal_plan 精确餐次提取
-- [x] RouteAgent：决策维度增强（性价比/非峰等位/口味评分/评价数）+ dining_count 约束 + 自我检查重试（结果可见）
-- [x] POISearchNode：接入 culture_pref / avoid / 全部 food_pref 偏好字段
-- [x] RefineNode：修复多轮对话 bug（从路线 POI 提取地理上下文，设置搜索类别）
-- [x] RefineSelectNode：修复重复替换 bug（排除所有当前路线 POI）
-- [x] OutputNode：步行路径并行请求（ThreadPoolExecutor，最坏 3s vs 原来 N×3s）
-- [x] 缓存升级：两级 key（原始输入 + intent 结构化 key），不同说法相同意图可共享缓存
-- [x] fulfillment_notes：履约报告推入 SSE 步骤流和 summary，前端零改动可见
-- [x] 三语支持（zh-TW / zh-CN / en）：所有用户可见字段随 language 切换
-- [x] 真实 HK 数据集：18,089 家香港餐厅（OpenRice 2021–2025），75 个中文类别标签，双语字段
-- [x] 多标签 sub_category（88% 餐厅，LIKE 命中任意标签）+ IntentNode food_pref 词汇对齐
-- [x] 字段级翻译：sub_category / category / trend_tag / queue_risk 英文模式自动翻译
-- [x] 全链路三语一致性：所有步骤消息（IntentNode / POISearch / GeoCluster / RouteNode / EnrichNode / OutputNode）均走 i18n；CoT 推理行后处理确保繁体输出；验证错误消息三语化
-- [x] 语言自动检测：run_pipeline.py 根据输入字符集自动判断 zh-CN / zh-TW / en
-- [x] i18n 重构：引入 OpenCC 替换手写字符对（85条→库），繁简互转覆盖所有汉字；CoT 格式指令语言化（__COT_FORMAT__ 占位符），无需后处理；city/area 三语显示翻译
-- [x] 数据质量修复：avg_price 改为多 tag 取最高价（130占比 69%→8.7%）；queue_minutes 加哈希变化（原3个固定值→均匀分布）；过滤 taste_rating=0 无效行
-- [x] 全字段利用：RouteAgent 新增 hygiene/decor/service_rating、trend_tag、review_count、recommend_count；EnrichNode 输出全部细分评分；recommend_count 改为真实评论总数（原 total×150）
-- [x] 文化/娱乐/自然景点数据：136 条香港景点（博物館 18、泳灘 42、郊野公園 25、主要景點 13、公園 18、表演場地 / 露天劇場 8 等），与餐饮库合并为 18,211 条统一 poi.csv
-- [x] area 字段全量填充：用 DeepSeek 批量地理编码，将所有"香港"通用区名替换为精确社区名（旺角/中環/灣仔/柴灣…），18,211 行 100% 覆盖
-- [x] i18n 地名英文翻译全覆盖：_LOCATION_EN 扩展至 204 个香港社区，18,211 行 100% 可英文输出
-- [x] 补充 37 条地标景点（天壇大佛、大館、PMQ、山頂纜車、赤松黃大仙祠、志蓮淨苑、天星小輪等），去重后合并为 18,248 条；i18n 扩展至 209 个社区，100% 覆盖
-- [x] GeoClusterNode 升级：area 真实坐标锚点（area_coords.py，90+ 社区），半径 3km→2km，锚点准确后过滤才真正有效
-- [x] 用户记忆系统（user_memory.py）：user_id 持久化菜系/忌口/预算/已访问 POI；路线生成后异步更新；历史偏好注入 RouteAgent 软约束
-- [x] 营业时间过滤（POISearchNode）：按 intent.time_range 过滤候选，soft fallback 避免结果过少
-- [x] 高德 POI 兜底（POISearchNode）：候选 < 3 条时自动调用高德 Place Search API 补充
-- [x] 数据补全：business_hours 按 sub_category 为 18,075 家餐厅生成合理营业时间（all_day / split / evening / brunch 四类）；has_group_buy 按价格档位为 8,512 家（47%）餐厅生成团购套餐数据
-- [x] 缓存 key 加入 language 字段，防止跨语言缓存污染；缓存命中路径补 user_memory 更新；缓存命中 SSE 消息走 i18n
-- [x] RefineNode 新增 prefer_sub_category 约束（支持"换一家日本料理"等带菜系的替换）；prefer_sub_category 传入 POISearchNode 偏好排序 + RefineSelectNode 优先筛选
-- [x] refine 流程结束后补 user_memory.update()；call_llm 异常捕获扩至 Exception（覆盖 JSONDecodeError）；高德兜底/替换成功/失败 SSE 消息全部 i18n 化；enrich_done 三语补全
-- [x] 三语 20 案例系统测试 + 4 项 bug 修复：① 英文 refine 0 候选（_normalize_cat 规范化 Dining→餐饮）；② zh-CN fulfillment 含繁体（pref 值在 _build_fulfillment 中先翻译）；③ 英文模式文化类 sub_category 无英译（扩展 _SUB_CATEGORY_EN 15+ 词条）；④ dining_excess 消息方向反（新增 dining_excess/dining_excess_tip 三语 key）
-- [x] 三语 50 案例深度测试 + 4 项修复：① RouteNode dining_count 强制执行（代码级截断 + 精确 correction prompt）；② zh-CN fulfillment POI 名字繁→简（`_name()` 辅助函数）；③ 文化类 POI 排队风险修正（103 条公园/海滩/郊野公园从"高"修为"低"）；④ POISearch 区域无覆盖时对所有类别触发 Amap（area_mismatch 检测）
-- [x] 评论信号系统：从 OpenRice 5年评论分析（POI_profile_extra_keywords.csv，23,541 POI）提取 11 个信号字段写入 poi.csv 和 poi.db；queue_risk 字段由 queue_signal_level 真实数据覆盖（原为 hash mock）
-- [x] 信号驱动 SQL 排序（POISearchNode）：risk_mention_rate ASC + year_max DESC 始终生效；prefer_local→local_mention_rate DESC；打卡拍照场景→photo_mention_rate DESC；家庭親子场景→accessibility_mention_rate DESC；场合 scenario_tags LIKE 匹配排序
-- [x] IntentAgent 新增 prefer_local（检测"地道/本地/老字号"）+ scenarios（情侶約會/朋友聚餐/家庭親子/慶生/商務接待/一人食/打卡拍照）字段
-- [x] RouteNode LLM 决策扩展：compact 传入 8 个信号字段，system prompt 提供均值基线（risk均值0.6/queue均值0.3）和阈值指引，LLM 可精确推理踩雷风险、排队建议、地道偏好
-- [x] 所有信号字段流经 EnrichNode → 最终路线输出，前端可直接使用
-- [x] 天气感知路线（WeatherNode）：高德天气API，5类天气条件（晴/雨/高温/寒冷/恶劣），雨天/高温自动注入 prefer_indoor，RouteNode 天气感知路线策略，SSE 三语天气提示
-- [x] 实时 POI 搜索增强：大陆城市高德API优先（pref关键词精准搜索）+ 香港SQLite优先；_is_hk_city 城市识别；多关键词并发搜索去重合并
-- [x] POI 标签体系：10个正向标签 + 3个风险标签，基于评论信号字段计算，天气感知动态追加"雨天友好"，三语全覆盖（translate_tag/translate_tags）
-- [x] 小红书式攻略导出（xiaohongshu_post）：LLM 生成（200-350字，emoji 丰富，第一人称博主语气，编号站点+具体菜品+实用 tips+话题标签）；与步行路径并行生成零额外延迟；出错时 template 兜底；三语各有独立格式要求
-- [x] 三语 20 案例深度测试 + 6 项 bug 修复：① zh-TW 小红书 body 含简体（city/area 未转繁体）；② dining_count=1 全餐饮候选时路线空白（_validate 条件放宽 + _force_dining_count 回退保护）；③ tags/risk_tags 固定繁体（新增 translate_tag/translate_tags 三语翻译）；④ trend_tag 自定义标签未翻译（拆解多标签逐词翻译）；⑤ culture_pref 文化/藝術等词未翻译（补充 _SUB_CATEGORY_EN）；⑥ 测试检测字符串设计缺陷（排除简繁同码字符）
-- [x] 英文模式 POI 名称显示修复：EnrichNode 在 en 模式优先使用 name_en，zh-CN 模式对 name 调用 to_simplified()，zh-TW 保持原始繁体；run_pipeline.py 新增小红书贴文区块 + POI 标签显示
-- [x] 三语语言纯洁性系统修复（共 3 处根本问题）：① zh-CN 路线 POI name 仍为繁体（EnrichNode 加 to_simplified）；② zh-CN 小红书 LLM 生成港式内容时忽略简体指令（生成后强制 OpenCC 转换）；③ en 小红书输出中文（CJK 比例检测 + 重试机制 + format prompt 细化为编号结构）；原则：LLM 自由文本不可信任语言指令，必须在输出端 OpenCC 兜底
-- [x] 全字段三语完整化（EnrichNode 最终修复轮）：address/city/area 按 language 翻译（en 用 address_en + _LOCATION_EN，zh-CN 转简体）；group_buy.discount en 改为"20% off"格式，title zh-CN 转简体；scenario_tags 新增 translate_scenario_tags 三语翻译；_SUB_CATEGORY_EN 补全 14 个缺失词条（雲南菜→Yunnan Cuisine 等）；summary 末尾 en 模式改用英文括号 (...) / 分号
-- [x] 前端接入指南全面更新（docs/frontend_guide_for_C.md）：4.2 节重写，涵盖所有 44 个 POI 字段（含 11 个评论信号字段，语言感知说明，group_buy 完整结构，scenario_tags 翻译对照表）；JS 地图代码修正中文括号；三个真实运行示例
-- [x] SSE 流式体验优化：① 请求进入立即发出 planning_start 事件（消除初始空白）；② async generator 每次 yield 后加 asyncio.sleep(0) 强制刷新 TCP 缓冲区，事件逐条到达不再批量堆积；③ OutputNode 小红书生成移出主流程，路线结果约 6s 先行发出，LLM 小红书异步生成后通过 xiaohongshu_update 独立事件推送
-- [ ] 前后端联调（成员 C 接入 NoCode）
-- [ ] 录制 Demo + 提交
-
----
 
 ## 团队分工
 
