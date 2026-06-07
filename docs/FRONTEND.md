@@ -1,7 +1,7 @@
 # 前端接入指南
 
-
-后端地址（Railway 线上）：`https://ai-route-planner-production.up.railway.app`
+**前端平台**：NoCode（nocode.host），底层为 React 18 + Vite + Tailwind CSS + shadcn/ui，部署在 `*.nocode.host`  
+**后端地址**（Railway 线上）：`https://ai-route-planner-production.up.railway.app`
 
 ## 一、SSE 读取（JS 代码）
 
@@ -296,37 +296,56 @@ async function refineRoute(userInput) {
 }
 ```
 
-## 七、建议页面布局
+## 七、实际页面布局（NoCode 实现）
+
+前端由 NoCode 平台（React 18 + Vite + Tailwind CSS + shadcn/ui）生成，组件结构如下：
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  🗺  AI 本地路线规划                              │
-│  language: [繁體] [简体] [English]               │
+│  途晓 · PathMind     [繁體] [简体] [English]      │
 ├─────────────────────────────────────────────────┤
-│  ["中環情侶約會，預算400..."]       [出发 →]      │
+│  ["旺角下午，想吃日本料理，預算400..."]            │
+│                          [出发 →]  [继续调整]     │
 ├─────────────────────────────────────────────────┤
-│  进度：✅ 已解析  ✅ 找到POI  🌤 天气晴朗  ⏳ 规划 │
+│  [换排队最长餐厅]  [增加一个户外地点]  [预算→200]  │  ← 快捷调整气泡
+├─────────────────────────────────────────────────┤
+│  🌤 晴天 28°C · 2026-06-07                       │  ← 天气信息
+│  💡 路线已自动为您调整为室内优先                  │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│         高德动态地图（可缩放，点POI弹详情）        │
-│   A●────────B●──────C●──────D●──────E●          │
+│       高德动态地图（可缩放，点标记弹详情）         │
+│   A●══════B●══════C●══════D●══════E●            │  ← 蓝线+方向箭头
 │                                                 │
 ├─────────────────────────────────────────────────┤
-│  A  大館    ⭐4.7  高  [高口碑][性價比高]  [导航] │
-│  B  茶具文物館  ⭐4.6  中  [高口碑]        [导航] │
-│  C  中環街市   ⭐4.7  中                   [导航] │
-│  D  小正大福   ⭐4.7  中  🎟¥410           [导航] │
-│  E  希鳥       ⭐4.7  低  🎟¥330  [低排隊] [导航] │
+│  A  大館      ⭐4.7  🔴高  [高口碑][本地人常去]   │
+│     停留90min · 步行约5min  [🔒锁定]  [导航]     │
+│  B  小正大福  ⭐4.7  🟡中  🎟 HKD 410            │
+│     停留60min · 步行约8min  [锁定]    [导航]     │
+│  ...                                            │
 ├─────────────────────────────────────────────────┤
-│  ⚠️ 未找到廣東菜，以港式替代                      │
+│  ⚠️ 未找到廣東菜，以港式替代                      │  ← fulfillment_notes
 │  💡 可說「換一家廣東菜餐廳」                      │
 ├─────────────────────────────────────────────────┤
 │  📋 小紅書攻略  [复制全文]                        │
-│  （result 到达时显示 loading，xiaohongshu_update │
-│   到达后替换为完整帖文）                          │
+│  （result 到达时转圈 loading；                   │
+│   xiaohongshu_update 约 +11s 后替换为完整帖文，  │
+│   #话题标签 自动高亮）                           │
 ├─────────────────────────────────────────────────┤
-│  💬 继续对话：["换一家不排队的餐厅"]  [发送]      │
+│  ℹ️ 实时进度日志（SSE step 事件，自动滚动）        │
 └─────────────────────────────────────────────────┘
+```
+
+**生成中状态**（isGenerating = true）：全屏遮罩 + 轮播趣味提示（每 2.5s 切换）+ 流式进度条 + 实时 SSE 日志。
+
+**导航跳转（微信环境自动识别）**：
+
+```javascript
+// 微信内 → 唤起微信高德小程序；网页端 → 打开网页版高德地图
+const getNavUrl = (poi) => {
+  const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+  const base = `https://uri.amap.com/marker?position=${poi.lng},${poi.lat}&name=${encodeURIComponent(poi.name)}`;
+  return isWechat ? `${base}&callnative=1&key=YOUR_AMAP_JS_KEY` : base;
+};
 ```
 
 ## 八、真实运行示例
@@ -386,10 +405,12 @@ result.route（精简）：
 
 ## 九、注意事项
 
-1. **HTTPS**：NoCode 页面是 HTTPS，Railway 后端也是 HTTPS，可直接请求，无 Mixed Content 问题
-2. **两种高德 Key**：后端 `.env` 里的 `AMAP_API_KEY` = Web 服务 Key（REST 接口）；前端 JS SDK 需单独申请 Web 端 JS Key，绑定域名 `*.nocode.host`
+1. **HTTPS**：NoCode 页面（`*.nocode.host`）与 Railway 后端均为 HTTPS，无 Mixed Content 问题
+2. **两种高德 Key**：后端 `.env` 里的 `AMAP_API_KEY` = Web 服务 Key（REST 接口）；前端 JS SDK 需单独申请 Web 端 JS Key，在高德控制台绑定域名 `*.nocode.host`
 3. **静态地图备用**：JS SDK 加载失败时，`result.map_url` 是现成的静态图片 URL，`<img src={map_url}>` 即可
-4. **SSE 解析**：不能用原生 `EventSource`（不支持 POST），必须用 `fetch + ReadableStream`
-5. **xiaohongshu_post**：`result` 事件中为空字符串；`xiaohongshu_update` 事件到达后更新；`done` 事件后若仍为空则 loading 隐藏
-6. **weather 为空对象**：`{}` 表示天气获取失败或城市不支持，做 `if (weather && weather.condition)` 判断
-7. **非香港城市 POI**：tags/risk_tags 可能较少，因为没有 OpenRice 评论信号数据
+4. **SSE 解析**：不能用原生 `EventSource`（不支持 POST），必须用 `fetch + ReadableStream`（见第一节代码）
+5. **xiaohongshu_post**：`result` 事件中为空字符串；`xiaohongshu_update` 事件约 +11s 后到达；`done` 事件后若仍为空则隐藏 loading
+6. **weather 为空对象**：`{}` 表示天气获取失败，做 `if (weather && weather.condition)` 判断后再渲染
+7. **快捷调整气泡**：调用 `/route/refine`，需带上 `current_route`（上一次 `result` 中的完整 route 数组）和 `locked_nodes`
+8. **锁定功能**：用户锁定某 POI 后，将其 `order` 值加入 `locked_nodes` 再调用 `/route/refine`，该站点不会被替换
+9. **非香港城市 POI**：tags/risk_tags 可能较少，因无 OpenRice 评论信号数据
