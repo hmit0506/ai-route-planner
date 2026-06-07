@@ -151,7 +151,14 @@ async def _graph_stream_async(graph, initial: RouteState) -> AsyncGenerator[dict
         yield data
 
 
+_SSE_FLUSH_PADDING = ": " + " " * 2048 + "\n\n"
+
+
 async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
+    # Bust proxy buffer (Railway / Cloudflare / nginx default ~2-4 KB) so chunks
+    # aren't held until the full response is ready.  SSE comments are ignored by
+    # all standard parsers.
+    yield _SSE_FLUSH_PADDING
     # Emit immediately so the client sees a response within ~50ms
     yield _sse("step", {"message": i18n.step("planning_start", req.language)})
     await asyncio.sleep(0)  # flush before any blocking I/O
@@ -287,6 +294,7 @@ async def generate_route(req: RouteRequest):
 
 
 async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
+    yield _SSE_FLUSH_PADDING
     if not req.current_route:
         yield _sse("error", {"message": "current_route is required for refine"})
         yield _sse("done", {})
