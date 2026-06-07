@@ -1,5 +1,5 @@
 """Minimal i18n for user-facing output strings."""
-import math as _math
+import re as _re
 
 # ---------------------------------------------------------------------------
 # Translation tables
@@ -563,7 +563,6 @@ def translate_field(field: str, value: str, lang: str = "zh-TW") -> str:
     if field == "category":
         return _CATEGORY_EN.get(value, value)
     if field == "trend_tag":
-        import re as _re
         # Extract sales count if present: "xxx（已售1.2万单）"
         m = _re.search(r"[（(]已售([\d.]+)(万?)单[）)]", value)
         sales_str = ""

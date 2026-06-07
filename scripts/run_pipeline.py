@@ -65,7 +65,6 @@ _HEADERS = {
     "zh-TW": ("=== Agent 日誌 ===", "=== 路線結果 ===", "=== 總結 ===", "=== 地圖URL ===", "=== 小紅書貼文 ==="),
     "en":    ("=== Agent Log ===",  "=== Route Result ===", "=== Summary ===", "=== Map URL ===", "=== Xiaohongshu Post ==="),
 }
-from route_planner.i18n import normalize as _norm
 h_log, h_route, h_summary, h_map, h_xhs = _HEADERS[_norm(language)]
 
 print(h_log)

@@ -7,7 +7,7 @@ import re
 import time
 from typing import List, Dict, Any
 
-from openai import OpenAI, RateLimitError as OpenAIRateLimitError, APIError as OpenAIAPIError
+from openai import OpenAI
 from anthropic import Anthropic
 
 

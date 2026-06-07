@@ -7,6 +7,7 @@ __pycache__/
 *.egg-info/
 route_planner/data/poi.db
 route_planner/data/HK/
+route_planner/data/users/
 scripts/fill_*.py
 scripts/migrate_*.py
 scripts/process_*.py

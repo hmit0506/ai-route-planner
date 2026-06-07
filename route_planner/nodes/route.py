@@ -157,8 +157,8 @@ class RouteNode(BaseNode):
         duration_hours = intent.get("duration_hours", 4)
         dining_count_req = intent.get("dining_count", 0)
 
-        # Build clean user context (exclude internal GeoCluster fields)
-        _exclude = {"max_pois", "max_dining", "min_cultural", "_refine"}
+        # Build clean user context (exclude internal GeoCluster / refine fields)
+        _exclude = {"max_pois", "_refine"}
         user_intent = {k: v for k, v in intent.items() if k not in _exclude}
 
         food_pref = intent.get("food_pref", [])
