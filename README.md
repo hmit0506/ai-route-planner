@@ -254,7 +254,7 @@ ai-route-planner/
 |---|---|
 | **孙嘉铄**（队长）<br>[@JoshuaSUN1112](https://github.com/JoshuaSUN1112) | 需求分析、高德地图接入、香港 POI 数据、OpenRice 评论信号处理 |
 | **施骞**<br>[@hmit0506](https://github.com/hmit0506) | 多智能体框架、AI Prompt 设计、后端、Railway 部署 |
-| **杨润祺**<br>[@Yangrunqi666](https://github.com/Yangrunqi666) | NoCode 平台前端开发、交互体验设计（新手引导、快捷调整气泡、小红书板块）、演示材料制作 |
+| **杨润祺**<br>[@Yangrunqi666](https://github.com/Yangrunqi666) | NoCode 平台前端开发、SSE 事件流解析与进度交互设计、用户引导与体验优化、演示材料制作 |
 
 ---
 
