@@ -1,4 +1,4 @@
-# 前端接入指南 · 途晓 PathMind
+# 前端接入指南
 
 
 后端地址（Railway 线上）：`https://ai-route-planner-production.up.railway.app`
