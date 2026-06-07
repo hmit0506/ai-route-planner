@@ -201,7 +201,7 @@ GET  /health           健康检查
 ai-route-planner/
 ├── route_planner/
 │   ├── i18n.py                # 三语翻译模块
-│   ├── area_coords.py         # 香港/上海 90+ 社区坐标对照表
+│   ├── area_coords.py         # 香港 90+ 商圈坐标对照表
 │   ├── user_memory.py         # 用户偏好记忆（JSON 持久化）
 │   ├── state.py               # 全局状态定义
 │   ├── graph.py               # 多智能体流水线
@@ -255,4 +255,4 @@ ai-route-planner/
 
 ---
 
-© 2026 瞬时扬程 · 孙嘉铄、施骞、杨润祺 · [MIT License](LICENSE)
+© 2026 瞬时扬程 · 孙嘉铄、施骞、杨润祺 · [MIT License](LICENSE) · All rights reserved.

@@ -33,7 +33,7 @@
          │ intent.weather: {condition, temperature, prefer_indoor, ...}
          ▼
   ┌──────────────────┐
-  │ POISearchNode    │  纯代码：HK=SQLite优先；大陆=高德API优先（pref关键词精准搜索）
+  │ POISearchNode    │  纯代码：香港=SQLite优先；其他城市=高德API优先（pref关键词精准搜索）
   └────────┬─────────┘
            │ candidates: {"餐饮": [...], "文化": [...]}
            ▼
@@ -169,7 +169,7 @@ class RouteState(TypedDict):
 
 **职责**：在 IntentNode 之后，通过高德天气 API 获取用户出行日期/时段的实际天气预报，并将天气信息注入 intent，供 RouteNode 做天气感知路线调整。
 
-**天气 API**：`https://restapi.amap.com/v3/weather/weatherInfo?extensions=all`（未来 4 天预报）。城市名 → adcode 内建映射（上海/北京/广州/深圳/香港等 20 城）。
+**天气 API**：`https://restapi.amap.com/v3/weather/weatherInfo?extensions=all`（未来 4 天预报）。城市名 → adcode 内建映射（香港/上海/北京/广州/深圳等 20 城）。
 
 **日期解析**：将 intent.date 的自然语言描述（"今天"/"明天"/"周末"/"today"/"weekend"）转换为 YYYY-MM-DD，按用户时段选择白天/夜间天气。
 
@@ -193,14 +193,14 @@ class RouteState(TypedDict):
 
 ### 4.3 POISearchNode（纯代码）
 
-**职责**：根据 intent 召回 POI 候选，优先使用实时数据（大陆城市）或本地高质量数据（香港）。
+**职责**：根据 intent 召回 POI 候选，香港优先使用本地高质量数据，其他城市使用实时搜索。
 
 **双路召回策略**：
 
 | 城市类型 | 主路径 | 备路径 |
 |---|---|---|
 | 香港（`_is_hk_city`返回 True） | SQLite 本地库（18,075条丰富香港数据） | 高德 API 兜底（<3条时触发） |
-| 大陆及其他城市 | 高德 Place Search API（实时数据） | SQLite（高德失败时） |
+| 其他城市 | 高德 Place Search API（实时数据） | SQLite（高德失败时） |
 
 **高德搜索增强（`_amap_search`）**：
 - `pref_keywords` 参数：将 `food_pref`/`culture_pref` 直接作为搜索关键词（如 `["日本料理","壽司"]`），比宽泛的"餐厅|美食"精准得多
@@ -236,7 +236,7 @@ class RouteState(TypedDict):
 **职责**：地理聚合过滤 + 根据时间预算计算推荐站点数。
 
 **逻辑**：
-1. **锚点选取**：优先从 `area_coords.py`（90+ 香港/上海社区对照表）查找 `intent.area` 的真实中心坐标作为锚点；查不到时退化为候选 POI 的几何质心（lat/lng 均值）
+1. **锚点选取**：优先从 `area_coords.py`（90+ 香港商圈坐标对照表）查找 `intent.area` 的真实中心坐标作为锚点；查不到时退化为候选 POI 的几何质心（lat/lng 均值）
 2. 过滤掉距锚点 > 2km 的 POI（原来用质心导致"自洽偏移"，改为真实区域中心后过滤才真正有效）；若某类剩余 < 3 个则回退保留原始候选
 3. 计算 `max_pois = max(3, min(8, floor(duration_hours × 60 / 65)))`
 4. 将 `max_pois` 写入 intent，传递给 RouteNode 作为参考
@@ -629,7 +629,7 @@ GET  /health           健康检查
 ```
 event: step    → {"message": "正在為您規劃路線，請稍候..."}           ← 请求进入立即（< 50ms）
 event: step    → {"message": "💡 用户提到本帮菜和文化景点，预算300元..."}
-event: step    → {"message": "已解析需求：上海外滩，14:00-21:00（7小时），2人，预算300元，餐饮、文化"}
+event: step    → {"message": "已解析需求：香港中環，14:00-21:00（7小时），2人，预算400港幣，餐饮、文化"}
 event: step    → {"message": "🌤 天气晴朗（22°C），适合户外活动"}
 event: step    → {"message": "找到候选POI：餐饮10个、文化8个"}
 event: step    → {"message": "地理聚合完成：中心半径3.0km，时间预算7小时→最多6站"}
