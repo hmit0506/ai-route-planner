@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import json
 import os
@@ -126,6 +127,10 @@ def _intent_cache_key(intent: dict, language: str = "zh-TW") -> str:
 
 
 async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
+    # Emit immediately so the client sees a response within ~50ms
+    yield _sse("step", {"message": i18n.step("planning_start", req.language)})
+    await asyncio.sleep(0)  # flush before any blocking I/O
+
     # Fast check: exact input match (language-scoped)
     raw_key = f"{req.language}:{req.user_input[:100]}"
     if raw_key in _cache:
@@ -133,6 +138,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
         if req.user_id and cached.get("intent") and cached.get("route"):
             user_memory.update(req.user_id, cached["intent"], cached["route"])
         yield _sse("step", {"message": i18n.step("cache_hit", req.language)})
+        await asyncio.sleep(0)
         yield _sse("result", _format_result(cached))
         yield _sse("done", {})
         return
@@ -165,6 +171,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
             new_steps = chunk.get("stream_updates", [])
             for step in new_steps[len(prev_steps):]:
                 yield _sse("step", {"message": step})
+                await asyncio.sleep(0)  # flush each event before next blocking node
             prev_steps = new_steps
             final_state = chunk
 
@@ -176,6 +183,7 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
                     if req.user_id and cached.get("intent") and cached.get("route"):
                         user_memory.update(req.user_id, cached["intent"], cached["route"])
                     yield _sse("step", {"message": i18n.step("intent_cache", req.language)})
+                    await asyncio.sleep(0)
                     yield _sse("result", _format_result(cached))
                     yield _sse("done", {})
                     return
@@ -190,7 +198,37 @@ async def _stream_route(req: RouteRequest) -> AsyncGenerator[str, None]:
             _cache[intent_key] = final_state
         if req.user_id and final_state.get("intent") and final_state.get("route"):
             user_memory.update(req.user_id, final_state["intent"], final_state["route"])
+
+        # Send route result immediately (template xiaohongshu already included)
         yield _sse("result", _format_result(final_state))
+        await asyncio.sleep(0)
+
+        # Generate LLM xiaohongshu post asynchronously after route result is delivered
+        yield _sse("step", {"message": i18n.step("xhs_generating", req.language)})
+        await asyncio.sleep(0)
+        try:
+            from route_planner.nodes.output import _llm_xiaohongshu
+            loop = asyncio.get_event_loop()
+            xhs_post = await loop.run_in_executor(
+                None,
+                lambda: _llm_xiaohongshu(
+                    final_state["route"],
+                    final_state.get("intent", {}),
+                    final_state.get("weather", {}),
+                    req.language,
+                ),
+            )
+            if xhs_post:
+                updated = {**final_state, "xiaohongshu_post": xhs_post}
+                _cache[raw_key] = updated
+                if intent_key:
+                    _cache[intent_key] = updated
+                yield _sse("step", {"message": i18n.step("xhs_done", req.language)})
+                await asyncio.sleep(0)
+                yield _sse("xiaohongshu_update", {"xiaohongshu_post": xhs_post})
+                await asyncio.sleep(0)
+        except Exception:
+            pass  # template version already sent in result SSE
 
     yield _sse("done", {})
 
@@ -253,6 +291,7 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
             new_steps = chunk.get("stream_updates", [])
             for step in new_steps[len(prev_steps):]:
                 yield _sse("step", {"message": step})
+                await asyncio.sleep(0)  # flush each event before next blocking node
             prev_steps = new_steps
             final_state = chunk
     except Exception as exc:

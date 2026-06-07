@@ -500,7 +500,7 @@ class OutputNode(BaseNode):
         lang = state.get("language", "zh-TW")
         api_key = os.getenv("AMAP_API_KEY", "")
 
-        # Fetch walking polylines + LLM xiaohongshu post in parallel
+        # Fetch walking polylines in parallel (xiaohongshu generated after result is sent)
         n_segments = len(route) - 1
         intent_snap  = state.get("intent", {})
         weather_snap = state.get("weather", {})
@@ -511,14 +511,14 @@ class OutputNode(BaseNode):
                 poi["lng"], poi["lat"], nxt["lng"], nxt["lat"], api_key
             ) if api_key else None
 
-        def _gen_xhs(_):
-            return _llm_xiaohongshu(route, intent_snap, weather_snap, lang)
+        if n_segments > 0:
+            with ThreadPoolExecutor(max_workers=min(n_segments, 5)) as ex:
+                polylines = list(ex.map(_fetch_segment, range(n_segments)))
+        else:
+            polylines = []
 
-        with ThreadPoolExecutor(max_workers=min(n_segments + 1, 6)) as ex:
-            segment_futures = [ex.submit(_fetch_segment, i) for i in range(n_segments)]
-            xhs_future      = ex.submit(_gen_xhs, None)
-            polylines = [f.result() for f in segment_futures]
-            xhs_post  = xhs_future.result()
+        # LLM xiaohongshu is generated asynchronously in main.py after result is sent
+        xhs_post = ""
 
         for i, poi in enumerate(route):
             poi["order"] = i + 1

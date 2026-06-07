@@ -430,6 +430,7 @@ _QUEUE_RISK_EN: dict[str, str] = {"高": "High", "中": "Medium", "低": "Low"}
 
 _STEPS = {
     "zh-CN": {
+        "planning_start":   "正在为您规划路线，请稍候...",
         "intent_done":      "已解析需求：{city}{area}，{time}（{dur}小时），{party}人，预算{budget}元，{cats}{dining}",
         "dining_note":      "，{n}个餐饮活动",
         "weather_clear":    "🌤 天气晴朗（{temp}°C），适合户外活动",
@@ -450,8 +451,11 @@ _STEPS = {
         "amap_fallback":    "📍 本地数据不足，已补充高德地图数据：{cats}",
         "cache_hit":        "缓存命中，直接返回结果",
         "intent_cache":     "意图缓存命中，直接返回结果",
+        "xhs_generating":   "正在生成小红书攻略贴文...",
+        "xhs_done":         "小红书攻略贴文已生成",
     },
     "zh-TW": {
+        "planning_start":   "正在為您規劃路線，請稍候...",
         "intent_done":      "已解析需求：{city}{area}，{time}（{dur}小時），{party}人，預算{budget}元，{cats}{dining}",
         "dining_note":      "，{n}個餐飲活動",
         "weather_clear":    "🌤 天氣晴朗（{temp}°C），適合戶外活動",
@@ -472,8 +476,11 @@ _STEPS = {
         "amap_fallback":    "📍 本地數據不足，已補充高德地圖數據：{cats}",
         "cache_hit":        "快取命中，直接返回結果",
         "intent_cache":     "意圖快取命中，直接返回結果",
+        "xhs_generating":   "正在生成小紅書攻略貼文...",
+        "xhs_done":         "小紅書攻略貼文已生成",
     },
     "en": {
+        "planning_start":   "Planning your route, please wait...",
         "intent_done":      "Parsed: {city} {area} | {time} ({dur}h) | {party} pax | budget HKD {budget} | {cats}{dining}",
         "dining_note":      ", {n} meal occasion(s)",
         "weather_clear":    "🌤 Clear weather ({temp}°C) — outdoor activities recommended",
@@ -494,6 +501,8 @@ _STEPS = {
         "amap_fallback":    "📍 Local data insufficient, supplemented with Amap data: {cats}",
         "cache_hit":        "Cache hit — returning cached result",
         "intent_cache":     "Intent cache hit — returning cached result",
+        "xhs_generating":   "Generating Little Red Book post...",
+        "xhs_done":         "Little Red Book post generated",
     },
 }
 
