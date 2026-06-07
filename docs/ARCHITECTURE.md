@@ -237,11 +237,9 @@ class RouteState(TypedDict):
 
 **逻辑**：
 1. **锚点选取**：优先从 `area_coords.py`（90+ 香港商圈坐标对照表）查找 `intent.area` 的真实中心坐标作为锚点；查不到时退化为候选 POI 的几何质心（lat/lng 均值）
-2. 过滤掉距锚点 > 2km 的 POI（原来用质心导致"自洽偏移"，改为真实区域中心后过滤才真正有效）；若某类剩余 < 3 个则回退保留原始候选
+2. 过滤掉距锚点 > 2km 的 POI；若某类剩余 < 3 个则回退保留原始候选
 3. 计算 `max_pois = max(3, min(8, floor(duration_hours × 60 / 65)))`
 4. 将 `max_pois` 写入 intent，传递给 RouteNode 作为参考
-
-**为什么之前锚点有问题**：旧版用候选自身的质心——候选本来就分散时，质心落在两者中间，大部分 POI 都在 3km 内，过滤形同虚设。改为区域中心坐标后，"中環"的候选只保留真正在中環附近的 POI。
 
 **注意**：GeoClusterNode 只做地理和时间的约束，**不做类别配比**。餐饮数量和文化/娱乐数量由 RouteAgent 根据 `meal_plan` 自主决定，避免硬性规则覆盖用户的真实意图。
 
@@ -377,7 +375,7 @@ EnrichNode 对所有文字字段做语言本地化，前端直接展示无需再
 | `transport_polyline` | 高德步行路径 API（`"lng,lat;lng,lat;..."`），供前端 JS 地图绘制蓝线；最后一个 POI 为 null |
 | `navigation_url` | 高德 URI Scheme，手机点击跳转导航 App |
 
-**步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时，而非原来的 N×3s。
+**步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时。
 
 **小红书式攻略导出**：OutputNode 本身不生成小红书，`xiaohongshu_post` 初始为空字符串。路线 `result` 事件发送后，`app/main.py` 通过 `loop.run_in_executor` 异步调用 `_llm_xiaohongshu`，完成后通过 `xiaohongshu_update` SSE 独立推送，不阻塞路线结果到达时间。`_llm_xiaohongshu` 生成 200-350 字博主风格贴文（三语独立 prompt）；`_build_xiaohongshu` 模板作为异常兜底。
 - **三语独立 prompt 策略**：每种语言有各自的 `lang_inst`（语言强制要求）+ `struct_hint`（精细格式要求）+ `user_msg`（语言匹配的数据标签）
@@ -449,7 +447,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | GeoClusterNode 纯代码 | < 1ms |
 | POISearchNode SQLite 查询 | < 5ms |
 | EnrichNode 纯代码 | < 10ms |
-| OutputNode 步行路径（并行） | 所有段同时发出，最坏情况 = 单段超时 3s（原来是 N×3s） |
+| OutputNode 步行路径（并行） | 所有段同时发出，最坏情况 = 单段超时 3s |
 | 小红书异步生成 | OutputNode 不再阻塞等 LLM 小红书；路线结果约 6s 先发；小红书约 +11s 后通过 xiaohongshu_update 推送 |
 | SSE 逐条刷新 | 每次 yield 后加 `await asyncio.sleep(0)`，强制 uvicorn 在下一个同步阻塞前刷新 TCP 缓冲区，事件逐条到达，不再批量堆积 |
 | 首条事件即时推送 | 请求进入立即发出 `planning_start` 事件（< 50ms），消除初始空白等待 |
@@ -567,7 +565,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | `has_group_buy` | 按 `avg_price_per_person` 档位概率（≥200元→55%，≥100元→45%，≥60元→35%，≥30元→20%，其余5%）+ poi_id hash；8,512 家（47%）有团购；`group_buy_title` 按 sub_category 生成对应套餐名，`group_buy_original_price` = avg×2，折扣 0.65–0.84 |
 | `business_hours` | 按 sub_category 分四类生成：all_day（港式/快餐/咖啡，08:00-22:00 变体）、full（粤菜/火锅，11:00-23:00 变体）、split（日本料理/西餐，午市+晚市）、evening（居酒屋/酒吧，17:30-23:30）、brunch（早午餐，08:00-15:00）；hash 变化 ±0-60min |
 
-**迁移流程**：`scripts/migrate_hk_to_csv.py` → `poi.csv`（提交 git）→ 服务启动时 `app/main.py` lifespan `_ensure_db()` → `poi.db`（不提交）。`poi.db` 仅在 CSV 比 DB 新时重建。
+**数据流**：`poi.csv`（提交 git）→ 服务启动时 `app/main.py` lifespan `_ensure_db()` → `poi.db`（不提交）。`poi.db` 仅在 CSV 比 DB 新时重建。
 
 ### 评论信号系统
 
