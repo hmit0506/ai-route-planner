@@ -1,7 +1,7 @@
 # 途晓 · PathMind
 
 > **把陌生街巷，走成你的主场。**  
-> 美团 Hackathon 第五题「现在就出发：AI本地路线智能规划」｜DDL：2026年6月7日 24:00
+> 美团 Hackathon 第五题「现在就出发：AI本地路线智能规划」
 
 **线上地址**：`https://ai-route-planner-production.up.railway.app`
 
@@ -247,8 +247,12 @@ ai-route-planner/
 
 **队名：瞬时扬程**
 
-| 成员 | 角色 | 负责内容 | GitHub |
-|---|---|---|---|
-| 孙嘉铄 | 队长 | 高德地图接入、香港 POI 数据（poi.csv）、OpenRice 评论信号处理 | [@JoshuaSUN1112](https://github.com/JoshuaSUN1112) |
-| 施骞 | 后端 | 多智能体框架、AI Prompt 设计、后端、Railway 部署 | [@hmit0506](https://github.com/hmit0506) |
-| 杨润祺 | 前端 | NoCode 前端、PPT、Demo 视频（接入见[前端接入指南](docs/FRONTEND.md)） | [@Yangrunqi666](https://github.com/Yangrunqi666) |
+| 成员 | 负责内容 | GitHub |
+|---|---|---|
+| 孙嘉铄（队长） | 高德地图接入、香港 POI 数据（poi.csv）、OpenRice 评论信号处理 | [@JoshuaSUN1112](https://github.com/JoshuaSUN1112) |
+| 施骞 | 多智能体框架、AI Prompt 设计、后端、Railway 部署 | [@hmit0506](https://github.com/hmit0506) |
+| 杨润祺 | NoCode 前端、PPT、Demo 视频（接入见[前端接入指南](docs/FRONTEND.md)） | [@Yangrunqi666](https://github.com/Yangrunqi666) |
+
+---
+
+© 2026 瞬时扬程 · 孙嘉铄、施骞、杨润祺 · [MIT License](LICENSE)
