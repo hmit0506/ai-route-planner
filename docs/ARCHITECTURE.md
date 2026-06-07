@@ -59,7 +59,7 @@
   最终路线 JSON + 静态地图 URL + xiaohongshu_post + weather
 ```
 
-**首次生成仅 2 次 LLM 调用**，其余均为纯代码，配合 SSE 流式推送保证 < 10 秒响应。
+**首次生成仅 2 次 LLM 调用**（IntentNode + RouteNode），小红书 LLM 在结果发出后异步生成不阻塞主流程，配合 SSE 流式推送保证路线结果约 6s 内到达。
 
 ### 局部替换流水线（多轮对话）
 
@@ -105,7 +105,7 @@ class RouteState(TypedDict):
     stream_updates: list          # 每个节点追加，FastAPI 层实时推 SSE
     user_memory: dict             # app 层从 user_id 加载，空 dict 表示匿名；路线完成后异步更新
     weather: dict                 # WeatherNode 写入：{condition, temperature, prefer_indoor, is_rainy, ...}
-    xiaohongshu_post: str         # OutputNode 写入：LLM 生成的小红书式攻略文本（三语，出错时 template 兜底）
+    xiaohongshu_post: str         # main.py 异步写入：LLM 生成的小红书式攻略文本（三语，通过 xiaohongshu_update SSE 推送）
 ```
 
 每个节点只写自己关心的字段，其余透传（`{**state, "key": new_value}`）。
@@ -379,7 +379,7 @@ EnrichNode 对所有文字字段做语言本地化，前端直接展示无需再
 
 **步行路径并行获取**：对每对相邻 POI 同时发出高德步行 API 请求（ThreadPoolExecutor，最多 5 个并发），最坏耗时 = 单段 3s 超时，而非原来的 N×3s。
 
-**小红书式攻略导出（`_llm_xiaohongshu`）**：调用 LLM 生成 200-350 字的真实博主风格贴文，与步行路径 API 并行执行（ThreadPoolExecutor）零额外延迟；`_build_xiaohongshu` 模板作为异常兜底。
+**小红书式攻略导出**：OutputNode 本身不生成小红书，`xiaohongshu_post` 初始为空字符串。路线 `result` 事件发送后，`app/main.py` 通过 `loop.run_in_executor` 异步调用 `_llm_xiaohongshu`，完成后通过 `xiaohongshu_update` SSE 独立推送，不阻塞路线结果到达时间。`_llm_xiaohongshu` 生成 200-350 字博主风格贴文（三语独立 prompt）；`_build_xiaohongshu` 模板作为异常兜底。
 - **三语独立 prompt 策略**：每种语言有各自的 `lang_inst`（语言强制要求）+ `struct_hint`（精细格式要求）+ `user_msg`（语言匹配的数据标签）
 - **en 格式要求**：① 含数字的吸睛标题 → ② 开场 hook → ③ 每站编号（1️⃣2️⃣3️⃣）+ 具体菜品 + 个人感受 + 价格/团购 → ④ 💡Tips（预算/时间/⚠️警告）→ ⑤ 5-8 个英文 hashtag
 - **语言纯洁性保障**（LLM 自由文本不可信语言指令，必须在输出端强制转换）：
@@ -450,7 +450,9 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 | POISearchNode SQLite 查询 | < 5ms |
 | EnrichNode 纯代码 | < 10ms |
 | OutputNode 步行路径（并行） | 所有段同时发出，最坏情况 = 单段超时 3s（原来是 N×3s） |
-| SSE 流式推送 | 每完成一个节点立即推进度，用户体感"秒开" |
+| 小红书异步生成 | OutputNode 不再阻塞等 LLM 小红书；路线结果约 6s 先发；小红书约 +11s 后通过 xiaohongshu_update 推送 |
+| SSE 逐条刷新 | 每次 yield 后加 `await asyncio.sleep(0)`，强制 uvicorn 在下一个同步阻塞前刷新 TCP 缓冲区，事件逐条到达，不再批量堆积 |
+| 首条事件即时推送 | 请求进入立即发出 `planning_start` 事件（< 50ms），消除初始空白等待 |
 | 内存缓存（两级） | 1. 原始输入精确匹配（含 language）；2. IntentNode 后按 language+city+area+budget_tier+cats+dining_count 检查；命中则 < 1s；两级命中均同步更新 user_memory | 
 
 高德步行路径 API 失败时自动降级为仅标记点地图，不阻塞主流程。
@@ -625,17 +627,24 @@ GET  /health           健康检查
 ### SSE 事件流
 
 ```
+event: step    → {"message": "正在為您規劃路線，請稍候..."}           ← 请求进入立即（< 50ms）
 event: step    → {"message": "💡 用户提到本帮菜和文化景点，预算300元..."}
 event: step    → {"message": "已解析需求：上海外滩，14:00-21:00（7小时），2人，预算300元，餐饮、文化"}
+event: step    → {"message": "🌤 天气晴朗（22°C），适合户外活动"}
 event: step    → {"message": "找到候选POI：餐饮10个、文化8个"}
 event: step    → {"message": "地理聚合完成：中心半径3.0km，时间预算7小时→最多6站"}
 event: step    → {"message": "路线生成完成，共4个地点"}
 event: step    → {"message": "已补充团购/排队/趋势信息"}
 event: step    → {"message": "路线规划完成，已生成地图链接"}
-event: result  → {完整路线 JSON}
+event: result  → {完整路线 JSON，xiaohongshu_post 为空}               ← 路线结果先发（约 6s）
+event: step    → {"message": "正在生成小红书攻略贴文..."}
+event: xiaohongshu_update → {"xiaohongshu_post": "📍 中環一日遊..."}  ← LLM 小红书后发（约 +11s）
+event: step    → {"message": "小红书攻略贴文已生成"}
 event: done    → {}
 event: error   → {"message": "错误信息"}
 ```
+
+> 每条 `step` 事件单独刷新（`asyncio.sleep(0)` 保障），不再批量堆积。`xiaohongshu_update` 为独立事件类型，前端用 `source.addEventListener('xiaohongshu_update', fn)` 接收。
 
 ### result 事件数据结构
 

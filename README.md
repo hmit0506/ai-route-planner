@@ -28,7 +28,7 @@
 - **高德 POI 兜底**：本地数据库候选 < 3 条时，自动调用高德 Place Search API 补充候选，并在 SSE 步骤流中提示
 - **评论信号驱动**：11 个来自真实 OpenRice 评论的信号字段（risk/queue/photo/local/accessibility mention rate + year_max + 四个 level 标签 + scenario_tags）参与 SQL 预排序和 LLM 决策；低风险优先、近年仍活跃优先；prefer_local / 打卡拍照 / 家庭親子等场合需求精准匹配
 - **POI 标签体系**：每个 POI 自动生成结构化正向标签（高口碑/團購划算/性價比高/本地人常去/拍照出片/低排隊/冷門寶藏/適合情侶/親子友好/雨天友好）和风险标签（踩雷風險/排隊較高/網紅打卡），基于评论信号字段计算，天气感知可动态追加「雨天友好」；三语全覆盖（zh-TW繁体/zh-CN简体/en英文）
-- **小红书式攻略导出**：每次规划后自动生成 `xiaohongshu_post` 文本，格式为社媒分享风格（路线摘要、时长、预算、适合人群、天气提醒、团购亮点、避坑提示、话题标签），无需额外 LLM 调用，三语各有专属模板
+- **小红书式攻略导出**：路线结果发送后，异步调用 LLM 生成 `xiaohongshu_post`，格式为社媒分享风格（路线摘要、时长、预算、适合人群、天气提醒、团购亮点、避坑提示、话题标签），通过独立 `xiaohongshu_update` SSE 事件推送，不阻塞路线结果；三语各有专属格式要求，模板兜底保障稳定性
 - **多维度决策**：综合评分、性价比、排队峰值/非峰值、口味评分、销量热度，选出最优路线
 - **用户记忆**：传入 `user_id` 即自动加载历史偏好（菜系、忌口、消费习惯），注入 RouteAgent 作为软约束；已访问 POI 自动从候选中排除，避免重复推荐；路线生成后异步更新记忆
 - **词汇对齐**：IntentNode 将用户自然语言（"壽司"、"下午茶"、"打邊爐"）规范化为数据库 sub_category 标准词，SQL LIKE 精准命中
@@ -193,6 +193,7 @@ PYTHONPATH=. .venv/bin/python3 scripts/run_pipeline.py "中環一整天，包括
 ### SSE 事件流
 
 ```
+event: step    → {"message": "正在为您规划路线，请稍候..."}   ← 请求进入立即发出（< 50ms）
 event: step    → {"message": "💡 ...推理过程..."}
 event: step    → {"message": "已解析需求：..."}
 event: step    → {"message": "找到候选POI：..."}
@@ -200,9 +201,14 @@ event: step    → {"message": "地理聚合完成：..."}
 event: step    → {"message": "路线生成完成，共N个地点"}
 event: step    → {"message": "已补充团购/排队/趋势信息"}
 event: step    → {"message": "路线规划完成，已生成地图链接"}
-event: result  → {完整路线 JSON}
+event: result  → {完整路线 JSON，xiaohongshu_post 为空}       ← 路线结果先到
+event: step    → {"message": "正在生成小红书攻略贴文..."}
+event: xiaohongshu_update → {"xiaohongshu_post": "..."}       ← LLM 小红书后到
+event: step    → {"message": "小红书攻略贴文已生成"}
 event: done    → {}
 ```
+
+> `xiaohongshu_update` 是独立事件类型，前端用 `source.addEventListener('xiaohongshu_update', ...)` 接收并更新小红书区域。
 
 ### result 事件 route 字段说明
 
@@ -363,6 +369,7 @@ Railway 部署时在项目 Variables 面板填写，不进代码。
 - [x] 三语语言纯洁性系统修复（共 3 处根本问题）：① zh-CN 路线 POI name 仍为繁体（EnrichNode 加 to_simplified）；② zh-CN 小红书 LLM 生成港式内容时忽略简体指令（生成后强制 OpenCC 转换）；③ en 小红书输出中文（CJK 比例检测 + 重试机制 + format prompt 细化为编号结构）；原则：LLM 自由文本不可信任语言指令，必须在输出端 OpenCC 兜底
 - [x] 全字段三语完整化（EnrichNode 最终修复轮）：address/city/area 按 language 翻译（en 用 address_en + _LOCATION_EN，zh-CN 转简体）；group_buy.discount en 改为"20% off"格式，title zh-CN 转简体；scenario_tags 新增 translate_scenario_tags 三语翻译；_SUB_CATEGORY_EN 补全 14 个缺失词条（雲南菜→Yunnan Cuisine 等）；summary 末尾 en 模式改用英文括号 (...) / 分号
 - [x] 前端接入指南全面更新（docs/frontend_guide_for_C.md）：4.2 节重写，涵盖所有 44 个 POI 字段（含 11 个评论信号字段，语言感知说明，group_buy 完整结构，scenario_tags 翻译对照表）；JS 地图代码修正中文括号；三个真实运行示例
+- [x] SSE 流式体验优化：① 请求进入立即发出 planning_start 事件（消除初始空白）；② async generator 每次 yield 后加 asyncio.sleep(0) 强制刷新 TCP 缓冲区，事件逐条到达不再批量堆积；③ OutputNode 小红书生成移出主流程，路线结果约 6s 先行发出，LLM 小红书异步生成后通过 xiaohongshu_update 独立事件推送
 - [ ] 前后端联调（成员 C 接入 NoCode）
 - [ ] 录制 Demo + 提交
 
