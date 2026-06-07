@@ -302,6 +302,29 @@ async def _stream_refine(req: RouteRequest) -> AsyncGenerator[str, None]:
         if req.user_id and final_state.get("route"):
             user_memory.update(req.user_id, final_state.get("intent", {}), final_state["route"])
         yield _sse("result", _format_result(final_state))
+        await asyncio.sleep(0)
+
+        yield _sse("step", {"message": i18n.step("xhs_generating", req.language)})
+        await asyncio.sleep(0)
+        try:
+            from route_planner.nodes.output import _llm_xiaohongshu
+            loop = asyncio.get_event_loop()
+            xhs_post = await loop.run_in_executor(
+                None,
+                lambda: _llm_xiaohongshu(
+                    final_state["route"],
+                    final_state.get("intent", {}),
+                    final_state.get("weather", {}),
+                    req.language,
+                ),
+            )
+            if xhs_post:
+                yield _sse("step", {"message": i18n.step("xhs_done", req.language)})
+                await asyncio.sleep(0)
+                yield _sse("xiaohongshu_update", {"xiaohongshu_post": xhs_post})
+                await asyncio.sleep(0)
+        except Exception:
+            pass
 
     yield _sse("done", {})
 
