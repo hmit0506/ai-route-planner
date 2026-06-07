@@ -476,7 +476,7 @@ LLM 有时输出 Markdown 代码块（`` ```json ... ``` ``），`_extract_json`
 - 蓝色步行路径折线
 - 使用 **Web 端 JS Key**（浏览器加载 SDK，与 Web 服务 Key 不同，需单独申请并绑定域名）
 
-详见 [前端接入指南](./frontend_guide_for_C.md)。
+详见 [前端接入指南](./FRONTEND.md)。
 
 ---
 

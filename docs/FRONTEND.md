@@ -1,9 +1,9 @@
-# Frontend Integration Guide · 途晓 PathMind
+# 前端接入指南 · 途晓 PathMind
 
 
 后端地址（Railway 线上）：`https://ai-route-planner-production.up.railway.app`
 
-### 13.1 SSE 读取（JS 代码）
+## 一、SSE 读取（JS 代码）
 
 所有接口均返回 SSE 流，需用 `fetch + ReadableStream`（不能用原生 `EventSource`，不支持 POST）。
 
@@ -55,7 +55,7 @@ async function generateRoute(userInput, language) {
 }
 ```
 
-### 13.2 请求字段
+## 二、请求字段
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -67,11 +67,11 @@ async function generateRoute(userInput, language) {
 
 `/route/refine` 额外需要 `current_route`（上一次 result 事件中的完整 route 数组）。
 
-### 13.3 result 事件顶层字段
+## 三、result 事件顶层字段
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `route` | array | POI 列表（见 13.4） |
+| `route` | array | POI 列表（见第四节） |
 | `map_url` | string | 高德静态地图图片 URL，含标记点和步行蓝线，`<img src=map_url>` 直接用 |
 | `summary` | string | 一句话总结，如「为你安排了6站行程，预计游玩5小时，餐饮消费约410元」 |
 | `fulfillment_notes` | object | `{satisfied:[], unmatched:[], tips:[]}` 需求满足报告 |
@@ -93,7 +93,7 @@ async function generateRoute(userInput, language) {
 }
 ```
 
-### 13.4 route 每个 POI 的完整字段
+## 四、route 每个 POI 的完整字段
 
 > 所有文字字段（name / category / sub_category / address / city / area / queue_risk / queue_risk_tip / trend_tag / transport_to_next / tags / risk_tags / scenario_tags / group_buy.discount）均已按 `language` 参数翻译，前端**直接展示**即可。
 
@@ -193,7 +193,7 @@ async function generateRoute(userInput, language) {
 | 一人食 | 一人食 | Solo Dining |
 | 打卡拍照 | 打卡拍照 | Photo Lovers |
 
-### 13.5 动态地图（高德 JS SDK）
+## 五、动态地图（高德 JS SDK）
 
 在 NoCode 添加**自定义 HTML 块**：
 
@@ -269,7 +269,7 @@ function onAmapLoaded() {
 
 > **Web 端 JS Key** 与后端 `.env` 里的 Web 服务 Key 不同，需在高德控制台单独申请并绑定域名 `*.nocode.host`。
 
-### 13.6 多轮对话（换一家）
+## 六、多轮对话（换一家）
 
 ```javascript
 let currentRoute = [];
@@ -296,7 +296,7 @@ async function refineRoute(userInput) {
 }
 ```
 
-### 13.7 建议页面布局
+## 七、建议页面布局
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -329,7 +329,7 @@ async function refineRoute(userInput) {
 └─────────────────────────────────────────────────┘
 ```
 
-### 13.8 真实运行示例
+## 八、真实运行示例
 
 **例 1：zh-TW — 香港中環情侶約會**
 
@@ -385,7 +385,7 @@ result.route（精简）：
 5. The Artisan          Dining  ⭐4.6 Low   [Great Deal][Low Queue][Family-Friendly]
 ```
 
-### 13.9 注意事项
+## 九、注意事项
 
 1. **HTTPS**：NoCode 页面是 HTTPS，Railway 后端也是 HTTPS，可直接请求，无 Mixed Content 问题
 2. **两种高德 Key**：后端 `.env` 里的 `AMAP_API_KEY` = Web 服务 Key（REST 接口）；前端 JS SDK 需单独申请 Web 端 JS Key，绑定域名 `*.nocode.host`
