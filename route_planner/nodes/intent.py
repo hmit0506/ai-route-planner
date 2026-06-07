@@ -28,13 +28,16 @@ def _parse_cot_response(raw: str) -> Tuple[str, dict]:
 
 def _validate_and_fix(intent: dict, user_input: str = "") -> dict:
     """Auto-fix common IntentAgent errors."""
-    # This system serves Hong Kong only — always normalise city to 香港
+    # City normalisation: default to 香港 unless the user explicitly named another city
     city = (intent.get("city") or "").strip()
     _hk_aliases = {"香港", "hong kong", "hk", "hongkong"}
-    if city.lower() not in _hk_aliases:
+    if not city or "未指定" in city or "不指定" in city:
         intent["city"] = "香港"
-        # Clear area when city was non-HK (area name won't match HK database)
-        if city and city.lower() not in _hk_aliases:
+    elif city.lower() not in _hk_aliases:
+        # Keep the non-HK city only if the user actually typed it in their input;
+        # otherwise it's an LLM hallucination — override to 香港
+        if not user_input or city not in user_input:
+            intent["city"] = "香港"
             intent["area"] = ""
 
     # Fix duration_hours if missing or zero
