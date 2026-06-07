@@ -249,7 +249,7 @@ ai-route-planner/
 
 | 成员 | 负责内容 |
 |---|---|
-| **孙嘉铄**（队长）<br>[@JoshuaSUN1112](https://github.com/JoshuaSUN1112) | 高德地图接入、香港 POI 数据、OpenRice 评论信号处理 |
+| **孙嘉铄**（队长）<br>[@JoshuaSUN1112](https://github.com/JoshuaSUN1112) | 需求分析、高德地图接入、香港 POI 数据、OpenRice 评论信号处理 |
 | **施骞**<br>[@hmit0506](https://github.com/hmit0506) | 多智能体框架、AI Prompt 设计、后端、Railway 部署 |
 | **杨润祺**<br>[@Yangrunqi666](https://github.com/Yangrunqi666) | NoCode 前端（接入见[前端接入指南](docs/FRONTEND.md)） |
 
