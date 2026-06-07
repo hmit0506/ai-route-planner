@@ -7,7 +7,8 @@ from route_planner.area_coords import get_area_center
 import route_planner.i18n as i18n
 
 _AVG_MINUTES_PER_STOP = 65
-_MAX_RADIUS_KM = 2.0   # tighter radius; proper anchor makes this effective
+_MAX_RADIUS_KM = 2.0
+_FALLBACK_RADIUS_KM = 8.0  # secondary radius before giving up geo-filtering entirely
 
 
 def _haversine_km(lat1, lng1, lat2, lng2):
@@ -51,7 +52,15 @@ class GeoClusterNode(BaseNode):
                     p for p in pois
                     if _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= _MAX_RADIUS_KM
                 ]
-                filtered[cat] = nearby if len(nearby) >= 3 else pois
+                if len(nearby) >= 3:
+                    filtered[cat] = nearby
+                else:
+                    # Try a wider radius before falling back to unfiltered candidates
+                    wider = [
+                        p for p in pois
+                        if _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= _FALLBACK_RADIUS_KM
+                    ]
+                    filtered[cat] = wider if len(wider) >= 2 else pois
         else:
             filtered = candidates
 
