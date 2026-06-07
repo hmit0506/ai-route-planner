@@ -5,7 +5,7 @@
 
 **前端地址**：[https://smart-journey-map.nocode.host](https://smart-journey-map.nocode.host)  
 **后端地址**：[https://ai-route-planner-production.up.railway.app](https://ai-route-planner-production.up.railway.app)  
-**演示视频**：[点击观看 Demo](https://connecthkuhk-my.sharepoint.com/personal/u3594771_connect_hku_hk/_layouts/15/stream.aspx?id=%2Fpersonal%2Fu3594771%5Fconnect%5Fhku%5Fhk%2FDocuments%2F%E7%BE%8E%E5%9B%A2ai%20%E5%B1%95%E7%A4%BAdemo%2Fvideo1445332796%2Emp4&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2Ee9c8c368%2D1315%2D496f%2D9c77%2Dff6b7a5c5edc)
+**演示视频**：[点击观看 Demo](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/u3594771_connect_hku_hk/IgAEbSGh5W8ZSJshJyZYabMnAc3R1bJsWWFomTvs0dpBb7U?e=QfSXW2)
 
 ---
 
